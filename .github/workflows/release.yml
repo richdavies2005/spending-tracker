@@ -1,0 +1,65 @@
+name: Release
+
+# Build a macOS installer and publish it to a GitHub Release.
+#
+# Trigger it either by pushing a version tag (e.g. `git tag v0.1.0 && git push
+# --tags`) or from the Actions tab with "Run workflow". The release is created
+# as a DRAFT — review the attached .dmg, then hit Publish when you're happy.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version tag to create the release under (e.g. v0.1.0)"
+        required: true
+        default: "v0.1.0"
+
+jobs:
+  release:
+    # macOS runner: the app uses the macOS Keychain, so it builds for macOS only.
+    runs-on: macos-latest
+    permissions:
+      contents: write # needed for tauri-action to create the release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Rust (both Mac architectures for a universal build)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build and publish the release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # For a tag push this is the tag; for a manual run, the input above.
+          tagName: ${{ github.event.inputs.tag || github.ref_name }}
+          releaseName: "Spending & Budget ${{ github.event.inputs.tag || github.ref_name }}"
+          releaseBody: |
+            ## Install (macOS)
+            1. Download the `.dmg` below and open it, then drag the app to Applications.
+            2. The first time, **right-click the app → Open → Open** (it's not
+               notarized, so a normal double-click is blocked by macOS Gatekeeper).
+            3. In the app: **Settings → Akahu connection** — create a personal app at
+               my.akahu.nz/apps and paste your own App Token and User Token.
+          releaseDraft: true
+          prerelease: false
+          # Universal binary so it runs on both Apple Silicon and Intel Macs.
+          args: --target universal-apple-darwin
