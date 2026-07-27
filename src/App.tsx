@@ -5,6 +5,7 @@ import { Categories } from "./pages/Categories";
 import { Budgets } from "./pages/Budgets";
 import { Bills } from "./pages/Bills";
 import { Settings } from "./pages/Settings";
+import { UpdateBanner } from "./components/UpdateBanner";
 import { IS_TAURI } from "./lib/api";
 
 type Page = "dashboard" | "transactions" | "categories" | "budgets" | "bills" | "settings";
@@ -48,6 +49,7 @@ export default function App() {
       </aside>
 
       <main className="content">
+        <UpdateBanner />
         {page === "dashboard" && <Dashboard />}
         {page === "transactions" && <Transactions />}
         {page === "categories" && <Categories />}

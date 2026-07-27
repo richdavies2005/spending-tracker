@@ -112,6 +112,13 @@ export interface CredentialStatus {
   user_token: boolean;
 }
 
+export interface UpdateInfo {
+  current: string;
+  latest: string;
+  available: boolean;
+  url: string;
+}
+
 export interface DiagTx {
   date: string; // ISO-8601, local time
   amount: number;

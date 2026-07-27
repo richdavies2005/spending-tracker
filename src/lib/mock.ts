@@ -582,6 +582,8 @@ export async function mockInvoke(cmd: string, a: any = {}): Promise<any> {
     }
     case "akahu_validate":
       return "Demo User (mock)";
+    case "check_for_update":
+      return { current: "0.0.0", latest: "0.0.0", available: false, url: "" };
 
     default:
       throw new Error(`mock: unknown command "${cmd}"`);

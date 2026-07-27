@@ -20,6 +20,7 @@ import type {
   SyncResult,
   SyncState,
   Transaction,
+  UpdateInfo,
 } from "./types";
 
 export const IS_TAURI =
@@ -133,4 +134,7 @@ export const api = {
     call<CredentialStatus>("save_credentials", { appToken, appSecret, userToken }),
   clearCredentials: () => call<CredentialStatus>("clear_credentials"),
   akahuValidate: () => call<string>("akahu_validate"),
+
+  // Updates
+  checkForUpdate: () => call<UpdateInfo>("check_for_update"),
 };

@@ -170,6 +170,16 @@ pub struct DiagTx {
     pub status: String,
 }
 
+/// Result of checking GitHub for a newer release. `available` drives the
+/// in-app "update available" banner; `url` points at the release to download.
+#[derive(Debug, Clone, Serialize)]
+pub struct UpdateInfo {
+    pub current: String,
+    pub latest: String,
+    pub available: bool,
+    pub url: String,
+}
+
 /// Whether each Akahu credential is present in the keychain (never the values).
 #[derive(Debug, Clone, Serialize)]
 pub struct CredentialStatus {

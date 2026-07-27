@@ -65,6 +65,7 @@ pub fn run() {
             commands::sync_from_bank,
             commands::sync_full,
             commands::akahu_diagnostic,
+            commands::check_for_update,
             commands::credentials_status,
             commands::save_credentials,
             commands::clear_credentials,

@@ -377,6 +377,61 @@ pub async fn akahu_diagnostic(creds: State<'_, Creds>) -> AppResult<AkahuDiagnos
     })
 }
 
+// ---- Updates --------------------------------------------------------------
+
+const RELEASES_URL: &str = "https://github.com/richdavies2005/spending-tracker/releases/latest";
+
+/// Split "1.2.3" (with optional leading "v" and trailing pre-release junk) into
+/// (major, minor, patch) for comparison.
+fn parse_semver(v: &str) -> (u64, u64, u64) {
+    let mut it = v.trim_start_matches('v').split('.').map(|p| {
+        p.chars().take_while(|c| c.is_ascii_digit()).collect::<String>().parse::<u64>().unwrap_or(0)
+    });
+    (it.next().unwrap_or(0), it.next().unwrap_or(0), it.next().unwrap_or(0))
+}
+
+async fn fetch_latest_tag() -> AppResult<(String, String)> {
+    let client = reqwest::Client::new();
+    let body: serde_json::Value = client
+        .get("https://api.github.com/repos/richdavies2005/spending-tracker/releases/latest")
+        .header("User-Agent", "spending-tracker")
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+    let tag = body.get("tag_name").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+    let url = body
+        .get("html_url")
+        .and_then(|v| v.as_str())
+        .unwrap_or(RELEASES_URL)
+        .to_string();
+    Ok((tag, url))
+}
+
+/// Check GitHub for a newer published release. Never errors out to the UI — on any
+/// network/API problem it simply reports "no update available" so the banner stays
+/// hidden. `current` is the version compiled into this build.
+#[tauri::command]
+pub async fn check_for_update() -> UpdateInfo {
+    let current = env!("CARGO_PKG_VERSION").to_string();
+    match fetch_latest_tag().await {
+        Ok((tag, url)) => UpdateInfo {
+            available: parse_semver(&tag) > parse_semver(&current),
+            latest: tag.trim_start_matches('v').to_string(),
+            current,
+            url,
+        },
+        Err(_) => UpdateInfo {
+            latest: current.clone(),
+            current,
+            available: false,
+            url: RELEASES_URL.to_string(),
+        },
+    }
+}
+
 // ---- Credentials ----------------------------------------------------------
 
 #[tauri::command]
