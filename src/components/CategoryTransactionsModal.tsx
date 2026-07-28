@@ -23,11 +23,14 @@ export function CategoryTransactionsModal({
   const [allPeriods, setAllPeriods] = useState(false);
   const [txns, setTxns] = useState<Transaction[] | null>(null);
 
+  // Fetch every transaction in the category once, then window it client-side so
+  // the "current period" view honours whatever the dashboard is showing (natural
+  // pay period OR a custom date range, passed in via periodStart/periodEnd).
   useEffect(() => {
     let live = true;
     setTxns(null);
     api
-      .transactionsList(true, allPeriods)
+      .transactionsList(true, true)
       .then((all) => {
         if (live) setTxns(all.filter((t) => t.user_category_id === row.category_id));
       })
@@ -35,12 +38,24 @@ export function CategoryTransactionsModal({
     return () => {
       live = false;
     };
-  }, [allPeriods, row.category_id]);
+  }, [row.category_id]);
+
+  // periodEnd is exclusive; matches the dashboard's [start, end) window exactly.
+  const start = periodStart.slice(0, 10);
+  const end = periodEnd.slice(0, 10);
+  const visible = useMemo(() => {
+    const all = txns ?? [];
+    if (allPeriods) return all;
+    return all.filter((t) => {
+      const d = t.date.slice(0, 10);
+      return d >= start && d < end;
+    });
+  }, [txns, allPeriods, start, end]);
 
   // Match the dashboard: only in-budget rows count toward the spent total.
   const includedSpent = useMemo(
-    () => (txns ?? []).filter((t) => t.in_budget).reduce((sum, t) => sum - t.amount, 0),
-    [txns],
+    () => visible.filter((t) => t.in_budget).reduce((sum, t) => sum - t.amount, 0),
+    [visible],
   );
 
   return (
@@ -77,12 +92,12 @@ export function CategoryTransactionsModal({
 
       {txns === null ? (
         <div className="empty">Loading…</div>
-      ) : txns.length === 0 ? (
+      ) : visible.length === 0 ? (
         <div className="empty">
-          No transactions in {row.category_name} {allPeriods ? "yet" : "this period"}.
+          No {row.category_name} transactions {allPeriods ? "yet" : "in this period"}.
         </div>
       ) : (
-        txns.map((t) => (
+        visible.map((t) => (
           <div
             className="cat-row"
             key={t.id}
