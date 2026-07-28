@@ -242,6 +242,26 @@ nav {
 .cat-row:last-child {
   border-bottom: none;
 }
+.cat-row.clickable {
+  cursor: pointer;
+  margin: 0 -12px;
+  padding-left: 12px;
+  padding-right: 12px;
+  border-radius: 8px;
+  transition: background 0.12s ease;
+}
+.cat-row.clickable:hover {
+  background: var(--hover, rgba(127, 127, 127, 0.09));
+}
+.cat-row.clickable:focus-visible {
+  outline: 2px solid var(--accent, #5b8def);
+  outline-offset: -2px;
+}
+.cat-row.clickable .chevron {
+  margin-left: 8px;
+  color: var(--text-faint, #9aa0a6);
+  font-weight: 600;
+}
 .cat-name {
   display: flex;
   align-items: center;

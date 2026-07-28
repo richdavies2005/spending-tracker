@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
-import type { AkahuDiagnostic, DashboardSummary, SyncState } from "../lib/types";
+import type { AkahuDiagnostic, DashboardRow, DashboardSummary, SyncState } from "../lib/types";
 import { money, moneySigned, periodRangeLabel, timestampLabel } from "../lib/format";
 import { errMessage, useToast } from "../lib/toast";
 import { TrimModal } from "../components/TrimModal";
+import { CategoryTransactionsModal } from "../components/CategoryTransactionsModal";
 
 export function Dashboard() {
   const toast = useToast();
@@ -11,6 +12,7 @@ export function Dashboard() {
   const [sync, setSync] = useState<SyncState | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [trimOpen, setTrimOpen] = useState(false);
+  const [openCat, setOpenCat] = useState<DashboardRow | null>(null);
   const [diag, setDiag] = useState<AkahuDiagnostic | null>(null);
   const [diagLoading, setDiagLoading] = useState(false);
 
@@ -151,7 +153,20 @@ export function Dashboard() {
           const pct = r.budget > 0 ? Math.min((r.spent / r.budget) * 100, 100) : 0;
           const over = r.budget > 0 && r.spent > r.budget;
           return (
-            <div className="cat-row" key={r.category_id}>
+            <div
+              className="cat-row clickable"
+              key={r.category_id}
+              onClick={() => setOpenCat(r)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setOpenCat(r);
+                }
+              }}
+              title={`View ${r.category_name} transactions`}
+            >
               <div className="cat-name">
                 <span className="dot" style={{ background: r.color }} />
                 {r.category_name}
@@ -163,6 +178,9 @@ export function Dashboard() {
               </div>
               <div className="cat-amounts">
                 <b>{money(r.spent)}</b> / {money(r.budget)}
+                <span className="chevron" aria-hidden="true">
+                  ›
+                </span>
               </div>
               <div className="bar">
                 <span
@@ -248,6 +266,15 @@ export function Dashboard() {
           </div>
         )}
       </div>
+
+      {openCat && (
+        <CategoryTransactionsModal
+          row={openCat}
+          periodStart={data.period_start}
+          periodEnd={data.period_end}
+          onClose={() => setOpenCat(null)}
+        />
+      )}
     </>
   );
 }
