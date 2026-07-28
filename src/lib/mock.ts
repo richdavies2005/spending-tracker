@@ -617,8 +617,9 @@ function dashboard(s: Store): DashboardSummary {
       /* excluded */
     } else {
       spent = -net;
+      expenseSpent += spent; // all expense categories count toward total spend
       if (c.rollover) {
-        rolloverBudget += budget;
+        rolloverBudget += budget; // informational (Set aside), not subtracted from net
         const since = c.rollover_start ?? ymd(start);
         const elapsed = periodIndex(s.settings, new Date()) - periodIndex(s.settings, parseYmd(since)) + 1;
         const totalSpend = s.transactions
@@ -630,8 +631,6 @@ function dashboard(s: Store): DashboardSummary {
           )
           .reduce((sum, t) => sum - t.amount, 0);
         envelope = Math.max(elapsed, 0) * budget - totalSpend;
-      } else {
-        expenseSpent += spent;
       }
     }
 
@@ -657,7 +656,7 @@ function dashboard(s: Store): DashboardSummary {
     income,
     expense_spent: expenseSpent,
     rollover_budget: rolloverBudget,
-    surplus: income - expenseSpent - rolloverBudget,
+    surplus: income - expenseSpent,
     rows,
     uncategorized_count,
   };

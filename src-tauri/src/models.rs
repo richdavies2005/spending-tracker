@@ -130,8 +130,10 @@ pub struct DashboardRow {
     pub envelope_balance: f64,
 }
 
-/// The period dashboard. `surplus` = income − non-rollover expense spend −
-/// rollover expense budget (positive = spare to move to savings).
+/// The period dashboard. `surplus` is the net balance = total income − total
+/// expense spend (positive = spare to save, negative = overspent). `expense_spent`
+/// now includes rollover categories' actual spend; `rollover_budget` is reported
+/// separately ("Set aside") and does NOT reduce the net balance.
 #[derive(Debug, Clone, Serialize)]
 pub struct DashboardSummary {
     pub period_start: String,

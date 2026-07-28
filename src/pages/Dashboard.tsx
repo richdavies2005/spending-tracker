@@ -116,12 +116,10 @@ export function Dashboard() {
       <div className="grid stat-row" style={{ marginBottom: 16 }}>
         <div className={`card surplus-card ${surplusPositive ? "" : "over"}`}>
           <div className="stat">
-            <div className="label">{surplusPositive ? "Spare to save" : "Over budget"}</div>
+            <div className="label">Net balance</div>
             <div className="value">{moneySigned(data.surplus)}</div>
             <div className="hint">
-              {surplusPositive
-                ? "Income minus spending and set-asides this period"
-                : "You've spent more than came in this period"}
+              {surplusPositive ? "Spare to save this period" : "Overspent this period"}
             </div>
           </div>
         </div>
@@ -133,12 +131,12 @@ export function Dashboard() {
         <div className="card stat">
           <div className="label">Spent</div>
           <div className="value">{money(data.expense_spent)}</div>
-          <div className="hint">everyday expenses</div>
+          <div className="hint">total spending this period</div>
         </div>
         <div className="card stat">
           <div className="label">Set aside</div>
           <div className="value">{money(data.rollover_budget)}</div>
-          <div className="hint">into rollover funds</div>
+          <div className="hint">budgeted to rollover funds</div>
         </div>
       </div>
 

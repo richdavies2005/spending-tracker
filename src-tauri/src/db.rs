@@ -1058,8 +1058,8 @@ pub fn dashboard(
 
     let mut rows = Vec::new();
     let mut income = 0.0;
-    let mut expense_spent = 0.0; // actual spend of NON-rollover expense categories
-    let mut rollover_budget = 0.0; // budgeted allocation of ROLLOVER expense categories
+    let mut expense_spent = 0.0; // actual spend of ALL expense categories (rollover included)
+    let mut rollover_budget = 0.0; // budgeted allocation of rollover funds (informational only)
 
     for c in &categories {
         let net = category_amount_sum(conn, c.id, &start, &end)?;
@@ -1072,9 +1072,14 @@ pub fn dashboard(
             }
             "transfer" => (0.0, 0.0), // excluded entirely
             _ => {
-                // expense: spent is outgoing, refunds (positive) net against it
+                // expense: spent is outgoing, refunds (positive) net against it.
+                // Every expense category counts toward the period's total spend now
+                // (the headline is a true net balance = income − all expenses).
                 let spent = -net;
+                expense_spent += spent;
                 if c.rollover {
+                    // Still surfaced in the "Set aside" card + envelope, but no longer
+                    // subtracted from the headline.
                     rollover_budget += budget;
                     let since = c.rollover_start.clone().unwrap_or_else(|| start.clone());
                     let elapsed = period::period_index(settings, today)
@@ -1087,7 +1092,6 @@ pub fn dashboard(
                     let envelope = elapsed.max(0) as f64 * budget - total_spend;
                     (spent, envelope)
                 } else {
-                    expense_spent += spent;
                     (spent, 0.0)
                 }
             }
@@ -1115,7 +1119,9 @@ pub fn dashboard(
         conn.query_row(&sql, params![start, end], |r| r.get(0))?
     };
 
-    let surplus = income - expense_spent - rollover_budget;
+    // Net balance = total income − total expenses. Rollover budget is reported
+    // separately (Set aside) and no longer reduces this figure.
+    let surplus = income - expense_spent;
 
     Ok(DashboardSummary {
         period_start: start,
