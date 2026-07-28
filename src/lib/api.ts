@@ -118,8 +118,12 @@ export const api = {
     categoryId: number | null,
   ) => call<Transaction>("manual_add", { date, amount, description, merchantName, categoryId }),
 
-  // Dashboard
-  dashboard: () => call<DashboardSummary>("dashboard"),
+  // Dashboard. Optional inclusive date range overrides the natural pay period.
+  dashboard: (rangeStart?: string | null, rangeEnd?: string | null) =>
+    call<DashboardSummary>("dashboard", {
+      rangeStart: rangeStart ?? null,
+      rangeEnd: rangeEnd ?? null,
+    }),
 
   // Sync
   syncStateGet: () => call<SyncState>("sync_state_get"),

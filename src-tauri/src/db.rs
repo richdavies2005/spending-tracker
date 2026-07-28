@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 
-use chrono::NaiveDate;
+use chrono::{Duration, NaiveDate};
 use rusqlite::{params, Connection, OptionalExtension, Row};
 
 use crate::error::{AppError, AppResult};
@@ -1048,12 +1048,37 @@ fn category_spend_since(conn: &Connection, category_id: i64, since: &str) -> App
     Ok(conn.query_row(&sql, params![category_id, since], |r| r.get(0))?)
 }
 
+/// Resolve the dashboard's date window. With an explicit inclusive range
+/// (`range_start`..`range_end`) it returns those bounds (end made exclusive) plus
+/// the range end as the "as of" date for rollover accrual; otherwise it falls back
+/// to the natural pay period containing `today`.
+fn dashboard_bounds(
+    settings: &Settings,
+    today: NaiveDate,
+    range_start: Option<&str>,
+    range_end: Option<&str>,
+) -> (String, String, NaiveDate) {
+    match (range_start, range_end) {
+        (Some(s), Some(e)) => {
+            let as_of = NaiveDate::parse_from_str(e, "%Y-%m-%d").unwrap_or(today);
+            let end_excl = (as_of + Duration::days(1)).format("%Y-%m-%d").to_string();
+            (s.to_string(), end_excl, as_of)
+        }
+        _ => {
+            let (s, e) = period::period_bounds_str(settings, today);
+            (s, e, today)
+        }
+    }
+}
+
 pub fn dashboard(
     conn: &Connection,
     settings: &Settings,
     today: NaiveDate,
+    range_start: Option<&str>,
+    range_end: Option<&str>,
 ) -> AppResult<DashboardSummary> {
-    let (start, end) = period::period_bounds_str(settings, today);
+    let (start, end, as_of) = dashboard_bounds(settings, today, range_start, range_end);
     let categories = categories_list(conn)?;
 
     let mut rows = Vec::new();
@@ -1082,10 +1107,10 @@ pub fn dashboard(
                     // subtracted from the headline.
                     rollover_budget += budget;
                     let since = c.rollover_start.clone().unwrap_or_else(|| start.clone());
-                    let elapsed = period::period_index(settings, today)
+                    let elapsed = period::period_index(settings, as_of)
                         - period::period_index(
                             settings,
-                            NaiveDate::parse_from_str(&since, "%Y-%m-%d").unwrap_or(today),
+                            NaiveDate::parse_from_str(&since, "%Y-%m-%d").unwrap_or(as_of),
                         )
                         + 1;
                     let total_spend = category_spend_since(conn, c.id, &since)?;

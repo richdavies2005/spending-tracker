@@ -278,10 +278,14 @@ pub fn manual_add(
 // ---- Dashboard ------------------------------------------------------------
 
 #[tauri::command]
-pub fn dashboard(db: State<'_, Db>) -> AppResult<DashboardSummary> {
+pub fn dashboard(
+    db: State<'_, Db>,
+    range_start: Option<String>,
+    range_end: Option<String>,
+) -> AppResult<DashboardSummary> {
     let conn = db.0.lock().unwrap();
     let settings = db::get_settings(&conn)?;
-    db::dashboard(&conn, &settings, today())
+    db::dashboard(&conn, &settings, today(), range_start.as_deref(), range_end.as_deref())
 }
 
 // ---- Sync -----------------------------------------------------------------

@@ -432,6 +432,31 @@ button.btn,
   flex-wrap: wrap;
   align-items: center;
 }
+.period-dd {
+  position: relative;
+  display: inline-block;
+}
+.period-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 60;
+  min-width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow), 0 12px 34px rgba(16, 24, 40, 0.16);
+}
+.period-pop-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 2px;
+}
 .seg {
   display: inline-flex;
   border: 1px solid var(--border);

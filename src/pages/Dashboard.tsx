@@ -5,9 +5,12 @@ import { money, moneySigned, periodRangeLabel, timestampLabel } from "../lib/for
 import { errMessage, useToast } from "../lib/toast";
 import { TrimModal } from "../components/TrimModal";
 import { CategoryTransactionsModal } from "../components/CategoryTransactionsModal";
+import { PeriodDropdown } from "../components/PeriodDropdown";
+import { useCustomRange } from "../lib/customRange";
 
 export function Dashboard() {
   const toast = useToast();
+  const { range, apply, clear } = useCustomRange();
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [sync, setSync] = useState<SyncState | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -18,7 +21,7 @@ export function Dashboard() {
 
   async function load() {
     try {
-      setData(await api.dashboard());
+      setData(await api.dashboard(range?.start ?? null, range?.end ?? null));
       setSync(await api.syncStateGet());
     } catch (e) {
       toast.error(errMessage(e));
@@ -26,7 +29,8 @@ export function Dashboard() {
   }
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range]);
 
   // One smart refresh: ask Akahu to re-poll the bank, then pull. The backend
   // falls back to a plain pull automatically if the bank rate-limits the re-poll.
@@ -67,11 +71,13 @@ export function Dashboard() {
         <div>
           <h1>Dashboard</h1>
           <div className="sub">
-            Pay period {periodRangeLabel(data.period_start, data.period_end)} · last synced{" "}
+            {range ? "Custom period" : "Pay period"}{" "}
+            {periodRangeLabel(data.period_start, data.period_end)} · last synced{" "}
             {timestampLabel(sync?.last_sync_at ?? null)}
           </div>
         </div>
         <div className="btn-row">
+          <PeriodDropdown range={range} onApply={apply} onClear={clear} />
           <button
             className="btn"
             onClick={() => setTrimOpen(true)}

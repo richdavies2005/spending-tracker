@@ -5,9 +5,12 @@ import { dayLabel, money, todayIso } from "../lib/format";
 import { errMessage, useToast } from "../lib/toast";
 import { Modal } from "../components/Modal";
 import { CategoryOptGroups } from "../components/CategoryOptGroups";
+import { PeriodDropdown } from "../components/PeriodDropdown";
+import { useCustomRange } from "../lib/customRange";
 
 export function Transactions() {
   const toast = useToast();
+  const { range, apply, clear } = useCustomRange();
   const [txns, setTxns] = useState<Transaction[]>([]);
   const [cats, setCats] = useState<Category[]>([]);
   const [showTransfers, setShowTransfers] = useState(false);
@@ -19,11 +22,19 @@ export function Transactions() {
 
   async function load() {
     try {
+      // With a custom range active, pull everything and filter to the window
+      // client-side (the same range the Dashboard uses).
       const [t, c] = await Promise.all([
-        api.transactionsList(showTransfers, allPeriods),
+        api.transactionsList(showTransfers, range ? true : allPeriods),
         api.categoriesList(),
       ]);
-      setTxns(t);
+      const shown = range
+        ? t.filter((tx) => {
+            const d = tx.date.slice(0, 10);
+            return d >= range.start && d <= range.end;
+          })
+        : t;
+      setTxns(shown);
       setCats(c);
     } catch (e) {
       toast.error(errMessage(e));
@@ -31,7 +42,8 @@ export function Transactions() {
   }
   useEffect(() => {
     load();
-  }, [showTransfers, allPeriods]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showTransfers, allPeriods, range]);
 
   async function setCategory(tx: Transaction, categoryId: number | null) {
     const wasUnset = tx.user_category_id == null || tx.suggested;
@@ -81,20 +93,28 @@ export function Transactions() {
         <div>
           <h1>Transactions</h1>
           <div className="sub">
-            {allPeriods ? "All transactions" : "This pay period"} · {txns.length} shown
+            {range ? "Custom period" : allPeriods ? "All transactions" : "This pay period"} ·{" "}
+            {txns.length} shown
           </div>
         </div>
         <div className="btn-row">
+          <PeriodDropdown range={range} onApply={apply} onClear={clear} />
           <div className="seg">
             <button
-              className={`seg-btn ${!allPeriods ? "active" : ""}`}
-              onClick={() => setAllPeriods(false)}
+              className={`seg-btn ${!allPeriods && !range ? "active" : ""}`}
+              onClick={() => {
+                clear();
+                setAllPeriods(false);
+              }}
             >
               This period
             </button>
             <button
-              className={`seg-btn ${allPeriods ? "active" : ""}`}
-              onClick={() => setAllPeriods(true)}
+              className={`seg-btn ${allPeriods && !range ? "active" : ""}`}
+              onClick={() => {
+                clear();
+                setAllPeriods(true);
+              }}
             >
               All
             </button>

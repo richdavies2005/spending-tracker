@@ -518,7 +518,7 @@ export async function mockInvoke(cmd: string, a: any = {}): Promise<any> {
     }
 
     case "dashboard":
-      return done(dashboard(s));
+      return done(dashboard(s, a.rangeStart, a.rangeEnd));
 
     case "sync_state_get":
       return s.sync;
@@ -590,9 +590,12 @@ export async function mockInvoke(cmd: string, a: any = {}): Promise<any> {
   }
 }
 
-function dashboard(s: Store): DashboardSummary {
-  const start = periodStart(s.settings, new Date());
-  const end = nextPeriodStart(s.settings, new Date());
+function dashboard(s: Store, rangeStart?: string | null, rangeEnd?: string | null): DashboardSummary {
+  // An explicit inclusive range overrides the natural pay period.
+  const custom = rangeStart && rangeEnd;
+  const start = custom ? parseYmd(rangeStart) : periodStart(s.settings, new Date());
+  const asOf = custom ? parseYmd(rangeEnd) : new Date();
+  const end = custom ? addDays(parseYmd(rangeEnd), 1) : nextPeriodStart(s.settings, new Date());
   const within = (t: Transaction) => {
     const d = parseYmd(t.date);
     return t.in_budget && d >= start && d < end;
@@ -621,7 +624,7 @@ function dashboard(s: Store): DashboardSummary {
       if (c.rollover) {
         rolloverBudget += budget; // informational (Set aside), not subtracted from net
         const since = c.rollover_start ?? ymd(start);
-        const elapsed = periodIndex(s.settings, new Date()) - periodIndex(s.settings, parseYmd(since)) + 1;
+        const elapsed = periodIndex(s.settings, asOf) - periodIndex(s.settings, parseYmd(since)) + 1;
         const totalSpend = s.transactions
           .filter(
             (t) =>
