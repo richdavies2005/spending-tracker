@@ -17,6 +17,7 @@ export function Transactions() {
   const [allPeriods, setAllPeriods] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [adding, setAdding] = useState(false);
+  const [query, setQuery] = useState("");
 
   const catById = useMemo(() => new Map(cats.map((c) => [c.id, c])), [cats]);
 
@@ -87,6 +88,21 @@ export function Transactions() {
 
   const uncategorised = txns.filter((t) => t.user_category_id == null);
 
+  // Search filters only what's already loaded (the current period / All / custom
+  // range view) — matching merchant, description, category name, or amount.
+  const q = query.trim().toLowerCase();
+  const visible = q
+    ? txns.filter((t) => {
+        const cat = t.user_category_id != null ? catById.get(t.user_category_id)?.name ?? "" : "";
+        return (
+          (t.merchant_name ?? "").toLowerCase().includes(q) ||
+          (t.description ?? "").toLowerCase().includes(q) ||
+          cat.toLowerCase().includes(q) ||
+          Math.abs(t.amount).toFixed(2).includes(q)
+        );
+      })
+    : txns;
+
   return (
     <>
       <div className="page-head">
@@ -94,10 +110,24 @@ export function Transactions() {
           <h1>Transactions</h1>
           <div className="sub">
             {range ? "Custom period" : allPeriods ? "All transactions" : "This pay period"} ·{" "}
-            {txns.length} shown
+            {q ? `${visible.length} of ${txns.length} shown` : `${txns.length} shown`}
           </div>
         </div>
         <div className="btn-row">
+          <div className="search-box">
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Search this view…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            {query && (
+              <button className="search-clear" onClick={() => setQuery("")} title="Clear search">
+                ✕
+              </button>
+            )}
+          </div>
           <PeriodDropdown range={range} onApply={apply} onClear={clear} />
           <div className="seg">
             <button
@@ -152,14 +182,18 @@ export function Transactions() {
             </tr>
           </thead>
           <tbody>
-            {txns.length === 0 && (
+            {visible.length === 0 && (
               <tr>
                 <td colSpan={6}>
-                  <div className="empty">No transactions in this period yet.</div>
+                  <div className="empty">
+                    {q
+                      ? `No transactions match “${query.trim()}” in this view.`
+                      : "No transactions in this period yet."}
+                  </div>
                 </td>
               </tr>
             )}
-            {txns.map((tx) => (
+            {visible.map((tx) => (
               <tr key={tx.id} className={tx.in_budget ? "" : "tx-excluded"}>
                 <td style={{ whiteSpace: "nowrap", color: "var(--text-dim)" }}>
                   {dayLabel(tx.date)}

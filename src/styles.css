@@ -447,6 +447,35 @@ button.btn,
   flex-wrap: wrap;
   align-items: center;
 }
+.search-box {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.search-input {
+  width: 190px;
+  padding: 7px 26px 7px 11px;
+  font-size: 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+}
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.search-clear {
+  position: absolute;
+  right: 6px;
+  border: none;
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px;
+}
 .period-dd {
   position: relative;
   display: inline-block;
