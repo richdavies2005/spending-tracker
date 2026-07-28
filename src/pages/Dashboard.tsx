@@ -14,6 +14,7 @@ import { TrimModal } from "../components/TrimModal";
 import { CategoryTransactionsModal } from "../components/CategoryTransactionsModal";
 import { PeriodDropdown } from "../components/PeriodDropdown";
 import { useCustomRange } from "../lib/customRange";
+import { Icon } from "../components/Icon";
 import type { Page } from "../App";
 
 export function Dashboard({ onNavigate }: { onNavigate?: (page: Page) => void }) {
@@ -125,6 +126,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: Page) => void })
             disabled={refreshing}
             title="Permanently delete old transactions to keep the list lean"
           >
+            <Icon name="scissors" size={16} />
             Trim…
           </button>
           <button
@@ -133,7 +135,8 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: Page) => void })
             disabled={refreshing}
             title="Ask your bank for the latest, then pull. Takes a few seconds."
           >
-            {refreshing ? "Refreshing…" : "↻ Refresh"}
+            <Icon name="refresh" size={16} className={refreshing ? "spin" : undefined} />
+            {refreshing ? "Refreshing…" : "Refresh"}
           </button>
         </div>
       </div>

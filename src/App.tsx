@@ -6,17 +6,18 @@ import { Budgets } from "./pages/Budgets";
 import { Bills } from "./pages/Bills";
 import { Settings } from "./pages/Settings";
 import { UpdateBanner } from "./components/UpdateBanner";
+import { Icon, type IconName } from "./components/Icon";
 import { IS_TAURI } from "./lib/api";
 
 export type Page = "dashboard" | "transactions" | "categories" | "budgets" | "bills" | "settings";
 
-const NAV: { id: Page; label: string; icon: string }[] = [
-  { id: "dashboard", label: "Dashboard", icon: "◎" },
-  { id: "transactions", label: "Transactions", icon: "≡" },
-  { id: "categories", label: "Categories", icon: "▧" },
-  { id: "budgets", label: "Budgets", icon: "◑" },
-  { id: "bills", label: "Recurring bills", icon: "↻" },
-  { id: "settings", label: "Settings", icon: "⚙" },
+const NAV: { id: Page; label: string; icon: IconName }[] = [
+  { id: "dashboard", label: "Dashboard", icon: "dashboard" },
+  { id: "transactions", label: "Transactions", icon: "transactions" },
+  { id: "categories", label: "Categories", icon: "categories" },
+  { id: "budgets", label: "Budgets", icon: "budgets" },
+  { id: "bills", label: "Recurring bills", icon: "bills" },
+  { id: "settings", label: "Settings", icon: "settings" },
 ];
 
 export default function App() {
@@ -35,8 +36,9 @@ export default function App() {
               key={n.id}
               className={`nav-item ${page === n.id ? "active" : ""}`}
               onClick={() => setPage(n.id)}
+              aria-current={page === n.id ? "page" : undefined}
             >
-              <span className="nav-icon">{n.icon}</span>
+              <Icon name={n.icon} className="nav-icon" size={18} />
               {n.label}
             </button>
           ))}

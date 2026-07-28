@@ -4,6 +4,7 @@ All notable changes to **Spending & Budget**, newest first.
 
 ## Unreleased
 
+- **New look — "Ledger":** a warmer, more editorial visual identity. A deep pine-green brand replaces the generic blue, money figures and headings are set in the Fraunces serif, the dashboard's Net Balance panel is a flat colour block (no more gradient), and the sidebar now uses a clean, custom icon set instead of text glyphs.
 - **Clickable "uncategorised" banner** — the dashboard prompt now jumps you straight to the Transactions tab.
 - **Confirm before deleting** — deleting a manual transaction now asks for a second click ("Confirm delete?").
 - **Better screen-reader support** — icon-only buttons (confirm/reject a suggestion, clear search, in-budget toggle) and inline category pickers now have proper labels.

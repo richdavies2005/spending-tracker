@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { DateRange } from "../lib/customRange";
 import type { IncomePeriod } from "../lib/types";
 import { periodRangeLabel } from "../lib/format";
+import { Icon } from "./Icon";
 
 const CYCLES: { value: IncomePeriod; label: string }[] = [
   { value: "weekly", label: "Weekly" },
@@ -62,7 +63,9 @@ export function PeriodDropdown({
         onClick={() => setOpen((o) => !o)}
         title="Choose a custom date range"
       >
-        📅 {label} ▾
+        <Icon name="calendar" size={16} />
+        {label}
+        <span className="dd-caret" aria-hidden="true">▾</span>
       </button>
       {open && (
         <div className="period-pop">
