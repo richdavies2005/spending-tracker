@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import type { DateRange } from "../lib/customRange";
+import type { IncomePeriod } from "../lib/types";
 import { periodRangeLabel } from "../lib/format";
+
+const CYCLES: { value: IncomePeriod; label: string }[] = [
+  { value: "weekly", label: "Weekly" },
+  { value: "fortnightly", label: "Fortnightly" },
+  { value: "monthly", label: "Monthly" },
+];
 
 function nextDayIso(iso: string): string {
   const d = new Date(iso + "T00:00:00");
@@ -17,10 +24,14 @@ export function PeriodDropdown({
   range,
   onApply,
   onClear,
+  cycle,
+  onCycleChange,
 }: {
   range: DateRange | null;
   onApply: (r: DateRange) => void;
   onClear: () => void;
+  cycle?: IncomePeriod;
+  onCycleChange?: (p: IncomePeriod) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [start, setStart] = useState(range?.start ?? "");
@@ -55,6 +66,27 @@ export function PeriodDropdown({
       </button>
       {open && (
         <div className="period-pop">
+          {cycle && onCycleChange && (
+            <>
+              <div className="pop-label">Pay cycle</div>
+              <div className="seg pop-seg">
+                {CYCLES.map((c) => (
+                  <button
+                    key={c.value}
+                    className={`seg-btn ${cycle === c.value ? "active" : ""}`}
+                    onClick={() => onCycleChange(c.value)}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+              <div className="pop-hint">
+                Switching the cycle rescales your budgets. Fine-tune payday in Settings.
+              </div>
+              <div className="pop-divider" />
+              <div className="pop-label">Or view an exact date range</div>
+            </>
+          )}
           <label className="field">
             <span>Start date</span>
             <input type="date" value={start} max={end || undefined} onChange={(e) => setStart(e.target.value)} />

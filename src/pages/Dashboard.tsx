@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
-import type { AkahuDiagnostic, DashboardRow, DashboardSummary, SyncState } from "../lib/types";
-import { money, moneySigned, periodRangeLabel, timestampLabel } from "../lib/format";
+import type {
+  AkahuDiagnostic,
+  DashboardRow,
+  DashboardSummary,
+  IncomePeriod,
+  Settings,
+  SyncState,
+} from "../lib/types";
+import { lastWeekdayIso, money, moneySigned, periodRangeLabel, timestampLabel } from "../lib/format";
 import { errMessage, useToast } from "../lib/toast";
 import { TrimModal } from "../components/TrimModal";
 import { CategoryTransactionsModal } from "../components/CategoryTransactionsModal";
@@ -12,6 +19,7 @@ export function Dashboard() {
   const toast = useToast();
   const { range, apply, clear } = useCustomRange();
   const [data, setData] = useState<DashboardSummary | null>(null);
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [sync, setSync] = useState<SyncState | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [trimOpen, setTrimOpen] = useState(false);
@@ -22,7 +30,31 @@ export function Dashboard() {
   async function load() {
     try {
       setData(await api.dashboard(range?.start ?? null, range?.end ?? null));
+      setSettings(await api.getSettings());
       setSync(await api.syncStateGet());
+    } catch (e) {
+      toast.error(errMessage(e));
+    }
+  }
+
+  // Switch the pay cycle from the period dropdown. Preserves the payday weekday
+  // across weekly↔fortnightly; seeds sensible defaults otherwise (payday and the
+  // fortnightly anchor can be fine-tuned in Settings). Rescaling of budgets happens
+  // in the backend. Any custom range is cleared so the new cycle's period shows.
+  async function changeCycle(period: IncomePeriod) {
+    if (!settings || period === settings.income_period) return;
+    const weekday = settings.income_day >= 1 && settings.income_day <= 7 ? settings.income_day : 2;
+    const [incomeDay, incomeAnchor]: [number, string | null] =
+      period === "monthly"
+        ? [1, null]
+        : period === "fortnightly"
+          ? [weekday, lastWeekdayIso(weekday)]
+          : [weekday, null];
+    try {
+      await api.setSettings(period, incomeDay, incomeAnchor);
+      clear();
+      await load();
+      toast.success(`Switched to ${period} budgeting.`);
     } catch (e) {
       toast.error(errMessage(e));
     }
@@ -79,7 +111,13 @@ export function Dashboard() {
           </div>
         </div>
         <div className="btn-row">
-          <PeriodDropdown range={range} onApply={apply} onClear={clear} />
+          <PeriodDropdown
+            range={range}
+            onApply={apply}
+            onClear={clear}
+            cycle={settings?.income_period ?? "weekly"}
+            onCycleChange={changeCycle}
+          />
           <button
             className="btn"
             onClick={() => setTrimOpen(true)}
