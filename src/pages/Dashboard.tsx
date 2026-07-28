@@ -62,7 +62,9 @@ export function Dashboard() {
 
   if (!data) return <div className="empty">Loading…</div>;
 
-  const expenseRows = data.rows.filter((r) => r.kind === "expense");
+  const expenseRows = data.rows
+    .filter((r) => r.kind === "expense")
+    .sort((a, b) => a.category_name.localeCompare(b.category_name, undefined, { sensitivity: "base" }));
   const surplusPositive = data.surplus >= 0;
 
   return (
