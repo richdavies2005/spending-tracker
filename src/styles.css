@@ -5,9 +5,10 @@
   --border: #e2e6ec;
   --text: #1a1f29;
   --text-dim: #667085;
-  --text-faint: #98a2b3;
+  --text-faint: #727c8c;
   --accent: #2f6df6;
   --accent-soft: #e7effe;
+  --ring: rgba(47, 109, 246, 0.35);
   --good: #1f9d63;
   --good-soft: #e3f5ec;
   --warn: #d1472c;
@@ -28,9 +29,10 @@
     --border: #2a303a;
     --text: #e6e9ee;
     --text-dim: #98a2b3;
-    --text-faint: #6b7482;
+    --text-faint: #7c8593;
     --accent: #5b8def;
     --accent-soft: #1a2740;
+    --ring: rgba(91, 141, 239, 0.45);
     --good: #3ecf8e;
     --good-soft: #123527;
     --warn: #f4715a;
@@ -113,6 +115,7 @@ nav {
   cursor: pointer;
   text-align: left;
   width: 100%;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 .nav-item:hover {
   background: var(--surface-2);
@@ -202,7 +205,7 @@ nav {
 }
 .stat .hint {
   font-size: 12px;
-  color: var(--text-faint);
+  color: var(--text-dim);
   margin-top: 3px;
 }
 .value.good {
@@ -417,9 +420,14 @@ button.btn,
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, filter 0.15s ease,
+    transform 0.06s ease;
 }
 .btn:hover {
   background: var(--surface-2);
+}
+.btn:active:not(:disabled) {
+  transform: translateY(0.5px) scale(0.99);
 }
 .btn.primary {
   background: var(--accent);
@@ -433,6 +441,9 @@ button.btn,
   color: var(--warn);
   border-color: var(--warn-soft);
 }
+.btn.danger:hover {
+  background: var(--warn-soft);
+}
 .btn.small {
   padding: 5px 10px;
   font-size: 12.5px;
@@ -440,6 +451,20 @@ button.btn,
 .btn:disabled {
   opacity: 0.55;
   cursor: default;
+}
+
+/* ---- keyboard focus (visible ring on every interactive control) ---- */
+.btn:focus-visible,
+.nav-item:focus-visible,
+.icon-btn:focus-visible,
+.swatch:focus-visible,
+.search-clear:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.seg-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 .btn-row {
   display: flex;
@@ -464,6 +489,7 @@ button.btn,
 .search-input:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
 }
 .search-clear {
   position: absolute;
@@ -485,7 +511,7 @@ button.btn,
   top: calc(100% + 6px);
   left: 0;
   z-index: 60;
-  min-width: 250px;
+  min-width: 270px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -494,15 +520,14 @@ button.btn,
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow), 0 12px 34px rgba(16, 24, 40, 0.16);
+  transform-origin: top left;
+  animation: popIn 0.14s ease-out;
 }
 .period-pop-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 2px;
-}
-.period-pop {
-  min-width: 270px;
 }
 .pop-label {
   font-size: 12px;
@@ -542,6 +567,11 @@ button.btn,
   background: transparent;
   color: var(--text-dim);
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.seg-btn:hover:not(.active) {
+  background: var(--surface-2);
+  color: var(--text);
 }
 .seg-btn.active {
   background: var(--accent);
@@ -560,9 +590,11 @@ textarea {
   width: 100%;
 }
 input:focus,
-select:focus {
-  outline: 2px solid var(--accent-soft);
+select:focus,
+textarea:focus {
+  outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
 }
 label.field {
   display: block;
@@ -615,6 +647,10 @@ select.mini {
   line-height: 1;
   display: grid;
   place-items: center;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.06s ease;
+}
+.icon-btn:active {
+  transform: scale(0.92);
 }
 .icon-btn.confirm {
   color: var(--good);
@@ -640,6 +676,7 @@ select.mini {
   place-items: center;
   z-index: 50;
   padding: 20px;
+  animation: fadeIn 0.15s ease-out;
 }
 .modal {
   background: var(--surface);
@@ -650,6 +687,7 @@ select.mini {
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
   max-height: 90vh;
   overflow-y: auto;
+  animation: popIn 0.16s ease-out;
 }
 .modal-head {
   padding: 16px 20px;
@@ -763,5 +801,35 @@ select.mini {
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ---- respect reduced-motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

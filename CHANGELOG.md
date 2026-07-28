@@ -2,6 +2,16 @@
 
 All notable changes to **Spending & Budget**, newest first.
 
+## v0.6.0
+
+A polish release — no new features, just a more refined, accessible app.
+
+- **Visible keyboard focus** — every button, menu item, tab, and input now shows a clear focus ring, so the app is fully navigable by keyboard.
+- **Smoother interactions** — buttons, nav items, and the pay-cycle switcher now ease and give a subtle press response instead of snapping; modals and the period dropdown fade/scale in gently.
+- **Easier-to-read text** — bumped the contrast on secondary labels and hints (e.g. the "received this period" sub-text) in both light and dark mode.
+- **Press Esc to close** any dialog, and dialogs are now announced correctly to screen readers.
+- **Respects "Reduce Motion"** — all animations honour the system accessibility setting.
+
 ## v0.5.0
 
 - **Pay-cycle switcher** in the dashboard's "Select period" dropdown — switch between Weekly / Fortnightly / Monthly without opening Settings; budgets rescale automatically.
