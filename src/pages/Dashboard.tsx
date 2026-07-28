@@ -156,6 +156,7 @@ export function Dashboard() {
         {expenseRows.map((r) => {
           const pct = r.budget > 0 ? Math.min((r.spent / r.budget) * 100, 100) : 0;
           const over = r.budget > 0 && r.spent > r.budget;
+          const remaining = r.budget - r.spent;
           return (
             <div
               className="cat-row clickable"
@@ -194,6 +195,19 @@ export function Dashboard() {
                   }}
                 />
               </div>
+              {!r.rollover && (
+                <div className={`avail-tag ${remaining < 0 ? "over" : ""}`}>
+                  {remaining >= 0 ? (
+                    <>
+                      Available: <b>{money(remaining)}</b>
+                    </>
+                  ) : (
+                    <>
+                      Over by <b>{money(-remaining)}</b>
+                    </>
+                  )}
+                </div>
+              )}
               {r.rollover && (
                 <div className={`envelope-tag ${r.envelope_balance < 0 ? "neg" : ""}`}>
                   {r.envelope_balance >= 0

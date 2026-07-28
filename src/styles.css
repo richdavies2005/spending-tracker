@@ -306,6 +306,21 @@ nav {
 .envelope-tag.neg {
   color: var(--warn);
 }
+.avail-tag {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+.avail-tag b {
+  color: var(--text);
+}
+.avail-tag.over {
+  color: var(--warn);
+}
+.avail-tag.over b {
+  color: var(--warn);
+}
 
 /* ---- badges ---- */
 .badge {
