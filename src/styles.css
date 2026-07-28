@@ -717,11 +717,33 @@ select.mini {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  width: 100%;
   background: var(--amber);
   color: #fff;
   padding: 10px 16px;
+  border: none;
   border-radius: var(--radius-sm);
+  font: inherit;
   font-weight: 550;
+  text-align: left;
+}
+button.inbox-callout {
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+button.inbox-callout:hover {
+  filter: brightness(1.06);
+}
+button.inbox-callout:active {
+  filter: brightness(0.97);
+}
+button.inbox-callout:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.inbox-callout > span:last-child {
+  white-space: nowrap;
+  font-weight: 650;
 }
 .section-title {
   font-size: 13px;

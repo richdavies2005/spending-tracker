@@ -14,8 +14,9 @@ import { TrimModal } from "../components/TrimModal";
 import { CategoryTransactionsModal } from "../components/CategoryTransactionsModal";
 import { PeriodDropdown } from "../components/PeriodDropdown";
 import { useCustomRange } from "../lib/customRange";
+import type { Page } from "../App";
 
-export function Dashboard() {
+export function Dashboard({ onNavigate }: { onNavigate?: (page: Page) => void }) {
   const toast = useToast();
   const { range, apply, clear } = useCustomRange();
   const [data, setData] = useState<DashboardSummary | null>(null);
@@ -148,15 +149,19 @@ export function Dashboard() {
       )}
 
       {data.uncategorized_count > 0 && (
-        <div className="inbox-callout" style={{ marginBottom: 16 }}>
+        <button
+          type="button"
+          className="inbox-callout"
+          style={{ marginBottom: 16 }}
+          onClick={() => onNavigate?.("transactions")}
+          title="Go to the Transactions tab to categorise them"
+        >
           <span>
             {data.uncategorized_count} uncategorised transaction
             {data.uncategorized_count === 1 ? "" : "s"} need a category.
           </span>
-          <span className="muted" style={{ color: "#fff", opacity: 0.9 }}>
-            → Transactions tab
-          </span>
-        </div>
+          <span aria-hidden="true">Categorise →</span>
+        </button>
       )}
 
       <div className="grid stat-row" style={{ marginBottom: 16 }}>

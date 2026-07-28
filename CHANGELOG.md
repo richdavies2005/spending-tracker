@@ -2,6 +2,12 @@
 
 All notable changes to **Spending & Budget**, newest first.
 
+## Unreleased
+
+- **Clickable "uncategorised" banner** — the dashboard prompt now jumps you straight to the Transactions tab.
+- **Confirm before deleting** — deleting a manual transaction now asks for a second click ("Confirm delete?").
+- **Better screen-reader support** — icon-only buttons (confirm/reject a suggestion, clear search, in-budget toggle) and inline category pickers now have proper labels.
+
 ## v0.6.0
 
 A polish release — no new features, just a more refined, accessible app.

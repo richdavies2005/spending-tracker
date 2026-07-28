@@ -8,7 +8,7 @@ import { Settings } from "./pages/Settings";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { IS_TAURI } from "./lib/api";
 
-type Page = "dashboard" | "transactions" | "categories" | "budgets" | "bills" | "settings";
+export type Page = "dashboard" | "transactions" | "categories" | "budgets" | "bills" | "settings";
 
 const NAV: { id: Page; label: string; icon: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: "◎" },
@@ -50,7 +50,7 @@ export default function App() {
 
       <main className="content">
         <UpdateBanner />
-        {page === "dashboard" && <Dashboard />}
+        {page === "dashboard" && <Dashboard onNavigate={setPage} />}
         {page === "transactions" && <Transactions />}
         {page === "categories" && <Categories />}
         {page === "budgets" && <Budgets />}

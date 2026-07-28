@@ -123,7 +123,12 @@ export function Transactions() {
               onChange={(e) => setQuery(e.target.value)}
             />
             {query && (
-              <button className="search-clear" onClick={() => setQuery("")} title="Clear search">
+              <button
+                className="search-clear"
+                onClick={() => setQuery("")}
+                aria-label="Clear search"
+                title="Clear search"
+              >
                 ✕
               </button>
             )}
@@ -215,6 +220,7 @@ export function Transactions() {
                   <div className="cat-cell">
                     <select
                       className="mini"
+                      aria-label={`Category for ${tx.merchant_name || tx.description || "transaction"}`}
                       value={tx.user_category_id ?? ""}
                       onChange={(e) =>
                         setCategory(tx, e.target.value ? Number(e.target.value) : null)
@@ -228,6 +234,7 @@ export function Transactions() {
                         <span className="badge suggested">Auto</span>
                         <button
                           className="icon-btn confirm"
+                          aria-label="Confirm suggested category and remember this rule"
                           title="Correct — keep it and remember this rule"
                           onClick={() => confirmSuggestion(tx)}
                         >
@@ -235,6 +242,7 @@ export function Transactions() {
                         </button>
                         <button
                           className="icon-btn reject"
+                          aria-label="Reject suggested category and forget this rule"
                           title="Wrong — clear it and forget this rule"
                           onClick={() => rejectSuggestion(tx)}
                         >
@@ -252,6 +260,7 @@ export function Transactions() {
                   <input
                     type="checkbox"
                     className="budget-check"
+                    aria-label="Count this transaction in budget"
                     checked={tx.in_budget}
                     title={
                       tx.in_budget
@@ -326,6 +335,7 @@ function TxModal({
   const [categoryId, setCategoryId] = useState<string>(
     tx?.user_category_id != null ? String(tx.user_category_id) : "",
   );
+  const [confirmDel, setConfirmDel] = useState(false);
 
   async function save() {
     const abs = parseFloat(amount);
@@ -384,8 +394,13 @@ function TxModal({
               </button>
             )}
             {editing && isManual && (
-              <button className="btn small danger" onClick={del}>
-                Delete
+              <button
+                className="btn small danger"
+                onClick={() => (confirmDel ? del() : setConfirmDel(true))}
+                onBlur={() => setConfirmDel(false)}
+                title="Permanently delete this manual transaction"
+              >
+                {confirmDel ? "Confirm delete?" : "Delete"}
               </button>
             )}
           </div>
