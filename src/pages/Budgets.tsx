@@ -60,7 +60,9 @@ export function Budgets() {
     }
   }
 
-  const expenseCats = cats.filter((c) => c.kind === "expense");
+  const expenseCats = cats
+    .filter((c) => c.kind === "expense")
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
   const per =
     settings?.income_period === "monthly"
       ? "month"

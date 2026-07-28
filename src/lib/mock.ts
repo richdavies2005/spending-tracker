@@ -287,13 +287,21 @@ export async function mockInvoke(cmd: string, a: any = {}): Promise<any> {
   switch (cmd) {
     case "get_settings":
       return s.settings;
-    case "set_settings":
+    case "set_settings": {
+      // Rescale budgets when the cycle length changes (weekly:fortnightly:monthly
+      // = 1:2:4), mirroring the Rust backend.
+      const weeks = (p: string) => (p === "monthly" ? 4 : p === "fortnightly" ? 2 : 1);
+      const factor = weeks(a.incomePeriod) / weeks(s.settings.income_period);
+      if (factor !== 1) {
+        s.budgets = s.budgets.map((b) => ({ ...b, amount: Math.round(b.amount * factor * 100) / 100 }));
+      }
       s.settings = {
         income_period: a.incomePeriod,
         income_day: a.incomeDay,
         income_anchor: a.incomeAnchor ?? null,
       };
       return done();
+    }
 
     case "categories_list":
       return [...s.categories].sort((x, y) => x.sort_order - y.sort_order);

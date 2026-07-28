@@ -178,11 +178,30 @@ pub fn get_settings(conn: &Connection) -> AppResult<Settings> {
     Ok(s.unwrap_or_default())
 }
 
+/// Length of a pay period in "weeks", used to rescale budgets when the cycle
+/// changes. The user's model: weekly : fortnightly : monthly = 1 : 2 : 4, so a
+/// $100 fortnightly budget becomes $50 weekly or $200 monthly.
+fn period_weeks(period: &str) -> f64 {
+    match period {
+        "monthly" => 4.0,
+        "fortnightly" => 2.0,
+        _ => 1.0,
+    }
+}
+
 pub fn set_settings(conn: &Connection, s: &Settings) -> AppResult<()> {
+    // If the cycle length changes, rescale every stored budget so the underlying
+    // spending rate is preserved (a per-fortnight $100 becomes per-week $50, etc.).
+    let old = get_settings(conn)?;
+    let factor = period_weeks(&s.income_period) / period_weeks(&old.income_period);
+
     conn.execute(
         "UPDATE settings SET income_period = ?1, income_day = ?2, income_anchor = ?3 WHERE id = 1",
         params![s.income_period, s.income_day, s.income_anchor],
     )?;
+    if (factor - 1.0).abs() > f64::EPSILON {
+        conn.execute("UPDATE budgets SET amount = ROUND(amount * ?1, 2)", params![factor])?;
+    }
     Ok(())
 }
 
