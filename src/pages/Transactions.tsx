@@ -4,6 +4,7 @@ import type { Category, Transaction } from "../lib/types";
 import { dayLabel, money, todayIso } from "../lib/format";
 import { errMessage, useToast } from "../lib/toast";
 import { Modal } from "../components/Modal";
+import { CategoryOptGroups } from "../components/CategoryOptGroups";
 
 export function Transactions() {
   const toast = useToast();
@@ -166,11 +167,7 @@ export function Transactions() {
                       }
                     >
                       <option value="">— Uncategorised —</option>
-                      {cats.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
+                      <CategoryOptGroups cats={cats} />
                     </select>
                     {tx.suggested && (
                       <span className="suggest-controls">
@@ -385,11 +382,7 @@ function TxModal({
         <span>Category</span>
         <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
           <option value="">— Uncategorised —</option>
-          {cats.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
+          <CategoryOptGroups cats={cats} />
         </select>
       </label>
       {editing && (
