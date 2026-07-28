@@ -2,7 +2,7 @@
 
 All notable changes to **Spending & Budget**, newest first.
 
-## Unreleased
+## v0.7.0
 
 - **New look — "Ledger":** a warmer, more editorial visual identity. A deep pine-green brand replaces the generic blue, money figures and headings are set in the Fraunces serif, the dashboard's Net Balance panel is a flat colour block (no more gradient), and the sidebar now uses a clean, custom icon set instead of text glyphs.
 - **Clickable "uncategorised" banner** — the dashboard prompt now jumps you straight to the Transactions tab.
