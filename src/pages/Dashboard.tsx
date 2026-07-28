@@ -159,6 +159,18 @@ export function Dashboard() {
           const pct = r.budget > 0 ? Math.min((r.spent / r.budget) * 100, 100) : 0;
           const over = r.budget > 0 && r.spent > r.budget;
           const remaining = r.budget - r.spent;
+          // Traffic-light cue on the spent number: green under budget, amber at
+          // budget, red over. Neutral when no budget is set (and nothing spent).
+          const budgetColor =
+            r.budget <= 0
+              ? r.spent > 0.005
+                ? "var(--warn)"
+                : undefined
+              : remaining > 0.005
+                ? "var(--good)"
+                : remaining < -0.005
+                  ? "var(--warn)"
+                  : "var(--amber)";
           return (
             <div
               className="cat-row clickable"
@@ -184,7 +196,7 @@ export function Dashboard() {
                 )}
               </div>
               <div className="cat-amounts">
-                <b>{money(r.spent)}</b> / {money(r.budget)}
+                <b style={{ color: budgetColor }}>{money(r.spent)}</b> / {money(r.budget)}
                 <span className="chevron" aria-hidden="true">
                   ›
                 </span>
