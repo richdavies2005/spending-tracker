@@ -2,7 +2,7 @@
 
 All notable changes to **Spending & Budget**, newest first.
 
-## Unreleased
+## v0.8.0
 
 - **Rollover funds, reworked and much clearer.** A fund now reads like any other
   category — `spent / (budget + carried-over)` with an **Available** line — and
