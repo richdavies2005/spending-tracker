@@ -100,6 +100,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: Page) => void })
     .filter((r) => r.kind === "expense")
     .sort((a, b) => a.category_name.localeCompare(b.category_name, undefined, { sensitivity: "base" }));
   const surplusPositive = data.surplus >= 0;
+  const hasFunds = data.rows.some((r) => r.rollover);
 
   return (
     <>
@@ -187,11 +188,13 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: Page) => void })
           <div className="value">{money(data.expense_spent)}</div>
           <div className="hint">total spending this period</div>
         </div>
-        <div className="card stat">
-          <div className="label">Set aside</div>
-          <div className="value">{money(data.rollover_budget)}</div>
-          <div className="hint">budgeted to rollover funds</div>
-        </div>
+        {hasFunds && (
+          <div className="card stat">
+            <div className="label">In your funds</div>
+            <div className="value">{money(data.funds_total)}</div>
+            <div className="hint">saved across your rollover funds</div>
+          </div>
+        )}
       </div>
 
       <div className="card card-pad">
@@ -202,19 +205,23 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: Page) => void })
           <div className="empty">No expense categories yet — add some in Categories.</div>
         )}
         {expenseRows.map((r) => {
-          const pct = r.budget > 0 ? Math.min((r.spent / r.budget) * 100, 100) : 0;
-          const over = r.budget > 0 && r.spent > r.budget;
-          const remaining = r.budget - r.spent;
-          // Traffic-light cue on the spent number: green under budget, amber at
-          // budget, red over. Neutral when no budget is set (and nothing spent).
+          // Unified model: a fund's budget is fattened by its carried-over
+          // savings, and "remaining" is the live jar. Everything else renders
+          // exactly like a normal category.
+          const denom = r.rollover ? r.budget + r.carried_over : r.budget;
+          const remaining = r.rollover ? r.envelope_balance : r.budget - r.spent;
+          const pct = denom > 0 ? Math.min((r.spent / denom) * 100, 100) : 0;
+          const over = remaining < -0.005;
+          // Traffic-light cue on the spent number: green under, amber at, red
+          // over. Neutral when nothing's available yet (and nothing spent).
           const budgetColor =
-            r.budget <= 0
+            denom <= 0
               ? r.spent > 0.005
                 ? "var(--warn)"
                 : undefined
               : remaining > 0.005
                 ? "var(--good)"
-                : remaining < -0.005
+                : over
                   ? "var(--warn)"
                   : "var(--amber)";
           return (
@@ -236,13 +243,15 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: Page) => void })
                 <span className="dot" style={{ background: r.color }} />
                 {r.category_name}
                 {r.rollover && (
-                  <span className="badge type-transfer" title="Rollover / sinking fund">
-                    fund
-                  </span>
+                  <Icon
+                    name="rollover"
+                    size={15}
+                    className="fund-mark"
+                  />
                 )}
               </div>
               <div className="cat-amounts">
-                <b style={{ color: budgetColor }}>{money(r.spent)}</b> / {money(r.budget)}
+                <b style={{ color: budgetColor }}>{money(r.spent)}</b> / {money(denom)}
                 <span className="chevron" aria-hidden="true">
                   ›
                 </span>
@@ -255,24 +264,24 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: Page) => void })
                   }}
                 />
               </div>
-              {!r.rollover && (
-                <div className={`avail-tag ${remaining < 0 ? "over" : ""}`}>
-                  {remaining >= 0 ? (
-                    <>
-                      Available: <b>{money(remaining)}</b>
-                    </>
-                  ) : (
+              {r.rollover && r.dormant ? (
+                <div className="avail-tag">
+                  Available: <b>{money(0)}</b> · resets next payday
+                </div>
+              ) : (
+                <div className={`avail-tag ${over ? "over" : ""}`}>
+                  {over ? (
                     <>
                       Over by <b>{money(-remaining)}</b>
                     </>
+                  ) : (
+                    <>
+                      Available: <b>{money(remaining)}</b>
+                    </>
                   )}
-                </div>
-              )}
-              {r.rollover && (
-                <div className={`envelope-tag ${r.envelope_balance < 0 ? "neg" : ""}`}>
-                  {r.envelope_balance >= 0
-                    ? `${money(r.envelope_balance)} banked in this fund`
-                    : `${money(-r.envelope_balance)} over the fund balance`}
+                  {r.rollover && r.carried_over > 0.005 && (
+                    <> · {money(r.carried_over)} rolled over</>
+                  )}
                 </div>
               )}
             </div>
@@ -351,6 +360,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: Page) => void })
           periodStart={data.period_start}
           periodEnd={data.period_end}
           onClose={() => setOpenCat(null)}
+          onChanged={load}
         />
       )}
     </>

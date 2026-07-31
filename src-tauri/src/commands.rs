@@ -65,6 +65,13 @@ pub fn category_delete(db: State<'_, Db>, id: i64) -> AppResult<()> {
     db::category_delete(&db.0.lock().unwrap(), id)
 }
 
+#[tauri::command]
+pub fn fund_reset(db: State<'_, Db>, id: i64) -> AppResult<()> {
+    let conn = db.0.lock().unwrap();
+    let settings = db::get_settings(&conn)?;
+    db::fund_reset(&conn, &settings, today(), id)
+}
+
 // ---- Budgets --------------------------------------------------------------
 
 #[tauri::command]

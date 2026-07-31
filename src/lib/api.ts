@@ -52,6 +52,7 @@ export const api = {
     rollover: boolean,
   ) => call<void>("category_update", { id, name, color, sortOrder, kind, rollover }),
   categoryDelete: (id: number) => call<void>("category_delete", { id }),
+  fundReset: (id: number) => call<void>("fund_reset", { id }),
 
   // Budgets
   budgetsList: () => call<Budget[]>("budgets_list"),

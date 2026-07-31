@@ -293,6 +293,19 @@ pub fn category_delete(conn: &Connection, id: i64) -> AppResult<()> {
     Ok(())
 }
 
+/// Reset a rollover fund to empty. Its accrual restarts from next payday, so the
+/// live jar reads $0 for the rest of the current period and refills next period.
+pub fn fund_reset(conn: &Connection, settings: &Settings, today: NaiveDate, id: i64) -> AppResult<()> {
+    let next = period::next_period_start(settings, today)
+        .format("%Y-%m-%d")
+        .to_string();
+    conn.execute(
+        "UPDATE categories SET rollover_start = ?2 WHERE id = ?1 AND rollover = 1",
+        params![id, next],
+    )?;
+    Ok(())
+}
+
 // ----------------------------------------------------------------------------
 // Budgets
 // ----------------------------------------------------------------------------
@@ -1102,12 +1115,18 @@ pub fn dashboard(
 
     let mut rows = Vec::new();
     let mut income = 0.0;
-    let mut expense_spent = 0.0; // actual spend of ALL expense categories (rollover included)
-    let mut rollover_budget = 0.0; // budgeted allocation of rollover funds (informational only)
+    let mut expense_spent = 0.0; // actual spend of ALL expense categories (funds included)
+    let mut funds_total = 0.0; // combined live jar across rollover funds ("In your funds")
+
+    let cur_start = period::period_start(settings, as_of);
+    let cur_start_str = cur_start.format("%Y-%m-%d").to_string();
+    let idx_cur = period::period_index(settings, as_of);
 
     for c in &categories {
         let net = category_amount_sum(conn, c.id, &start, &end)?;
-        let budget = current_budget(conn, c.id, &end)?;
+        let mut budget = current_budget(conn, c.id, &end)?;
+        let mut carried_over = 0.0;
+        let mut dormant = false;
 
         let (spent, envelope) = match c.kind.as_str() {
             "income" => {
@@ -1122,19 +1141,53 @@ pub fn dashboard(
                 let spent = -net;
                 expense_spent += spent;
                 if c.rollover {
-                    // Still surfaced in the "Set aside" card + envelope, but no longer
-                    // subtracted from the headline.
-                    rollover_budget += budget;
+                    // A sinking fund. Accrue each period's OWN budget from the
+                    // fund's start through the current period — so a budget change
+                    // only counts from the period it was made (no retroactive
+                    // re-pricing) — then subtract everything spent from the fund.
                     let since = c.rollover_start.clone().unwrap_or_else(|| start.clone());
-                    let elapsed = period::period_index(settings, as_of)
-                        - period::period_index(
-                            settings,
-                            NaiveDate::parse_from_str(&since, "%Y-%m-%d").unwrap_or(as_of),
-                        )
-                        + 1;
-                    let total_spend = category_spend_since(conn, c.id, &since)?;
-                    let envelope = elapsed.max(0) as f64 * budget - total_spend;
-                    (spent, envelope)
+                    let rs_date = NaiveDate::parse_from_str(&since, "%Y-%m-%d").unwrap_or(as_of);
+                    let idx_rs = period::period_index(settings, rs_date);
+
+                    let mut accrued_total = 0.0;
+                    let mut this_period_budget = 0.0;
+                    if idx_cur >= idx_rs {
+                        let mut p_start = period::period_start(settings, rs_date);
+                        while period::period_index(settings, p_start) <= idx_cur {
+                            let next = period::next_period_start(settings, p_start);
+                            // Budget effective during period p: look it up on the
+                            // period's last day, but never past `as_of` so a change
+                            // made this period is picked up immediately.
+                            let lookup = (next - Duration::days(1))
+                                .min(as_of)
+                                .format("%Y-%m-%d")
+                                .to_string();
+                            let bp = current_budget(conn, c.id, &lookup)?;
+                            accrued_total += bp;
+                            if period::period_index(settings, p_start) == idx_cur {
+                                this_period_budget = bp;
+                            }
+                            p_start = next;
+                        }
+                    } else {
+                        // rollover_start is in the future (just reset): the fund is
+                        // dormant for the rest of this period, refills next payday.
+                        dormant = true;
+                    }
+
+                    let jar = accrued_total - category_spend_since(conn, c.id, &since)?;
+                    // Jar as it stood at the start of the current period (carryover).
+                    let spend_before = if idx_cur >= idx_rs {
+                        -category_amount_sum(conn, c.id, &since, &cur_start_str)?
+                    } else {
+                        0.0
+                    };
+                    carried_over = (accrued_total - this_period_budget) - spend_before;
+                    // A fund's shown budget is the amount applying THIS period
+                    // (0 while dormant), not the raw configured amount.
+                    budget = this_period_budget;
+                    funds_total += jar;
+                    (spent, jar)
                 } else {
                     (spent, 0.0)
                 }
@@ -1149,7 +1202,9 @@ pub fn dashboard(
             rollover: c.rollover,
             budget,
             spent,
+            carried_over,
             envelope_balance: envelope,
+            dormant,
         });
     }
 
@@ -1163,8 +1218,8 @@ pub fn dashboard(
         conn.query_row(&sql, params![start, end], |r| r.get(0))?
     };
 
-    // Net balance = total income − total expenses. Rollover budget is reported
-    // separately (Set aside) and no longer reduces this figure.
+    // Net balance = total income − total expenses. Funds' jar total is reported
+    // separately ("In your funds") and does not reduce this figure.
     let surplus = income - expense_spent;
 
     Ok(DashboardSummary {
@@ -1172,7 +1227,7 @@ pub fn dashboard(
         period_end: end,
         income,
         expense_spent,
-        rollover_budget,
+        funds_total,
         surplus,
         rows,
         uncategorized_count,

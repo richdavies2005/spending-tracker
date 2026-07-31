@@ -37,6 +37,7 @@ pub fn run() {
             commands::category_create,
             commands::category_update,
             commands::category_delete,
+            commands::fund_reset,
             commands::budgets_list,
             commands::budget_set,
             commands::budget_delete,

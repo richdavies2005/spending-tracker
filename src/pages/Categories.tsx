@@ -72,7 +72,7 @@ export function Categories() {
             <tr>
               <th>Category</th>
               <th>Type</th>
-              <th>Rollover</th>
+              <th>Rollover fund</th>
               <th></th>
             </tr>
           </thead>
@@ -88,7 +88,7 @@ export function Categories() {
                 <td>
                   <span className={`badge type-${c.kind}`}>{KIND_LABEL[c.kind]}</span>
                 </td>
-                <td className="muted">{c.rollover ? "Sinking fund" : "—"}</td>
+                <td className="muted">{c.rollover ? "Rollover fund" : "—"}</td>
                 <td>
                   <div className="btn-row">
                     <button className="btn small" onClick={() => setEditing(c)}>
@@ -239,7 +239,7 @@ function CategoryModal({
             onChange={(e) => setRollover(e.target.checked)}
           />
           <span>
-            Rollover (sinking fund) — unspent budget accrues across periods for lumpy bills
+            Rollover fund — unspent budget carries over across periods for lumpy bills
           </span>
         </label>
       )}

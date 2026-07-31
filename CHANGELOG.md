@@ -2,6 +2,23 @@
 
 All notable changes to **Spending & Budget**, newest first.
 
+## Unreleased
+
+- **Rollover funds, reworked and much clearer.** A fund now reads like any other
+  category — `spent / (budget + carried-over)` with an **Available** line — and
+  the confusing "banked in this fund" line is gone. Funds are marked with a small
+  ↻ icon and a "· $X rolled over" note.
+- **Fund breakdown on drill-down.** Clicking a fund shows a plain-English panel:
+  this period's budget, what carried over, available, spent, and what's left —
+  plus a one-line explainer.
+- **"In your funds" card** replaces "Set aside", showing the total you've saved
+  across all your rollover funds.
+- **Reset a fund** from its drill-down (with a confirmation) to empty it to $0;
+  it starts filling again next payday.
+- **Budget changes no longer re-price the past** — a new amount only counts from
+  the current period forward, so a fund's balance never jumps unexpectedly.
+- One consistent name everywhere: **"rollover fund"**.
+
 ## v0.7.0
 
 - **New look — "Ledger":** a warmer, more editorial visual identity. A deep pine-green brand replaces the generic blue, money figures and headings are set in the Fraunces serif, the dashboard's Net Balance panel is a flat colour block (no more gradient), and the sidebar now uses a clean, custom icon set instead of text glyphs.

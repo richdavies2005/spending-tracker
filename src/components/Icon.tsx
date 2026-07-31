@@ -11,7 +11,8 @@ export type IconName =
   | "settings"
   | "calendar"
   | "refresh"
-  | "scissors";
+  | "scissors"
+  | "rollover";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   dashboard: (
@@ -80,6 +81,13 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <circle cx="6" cy="18" r="2.6" />
       <path d="M8.1 7.9 20 18" />
       <path d="M8.1 16.1 20 6" />
+    </>
+  ),
+  rollover: (
+    <>
+      <path d="M12 3v6.5" />
+      <path d="M8.5 6 12 9.5 15.5 6" />
+      <rect x="5.5" y="12" width="13" height="8" rx="1.8" />
     </>
   ),
 };

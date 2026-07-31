@@ -116,8 +116,14 @@ pub struct SyncResult {
     pub last_sync_at: String,
 }
 
-/// One dashboard row: a category's budget vs actual for the current period,
-/// plus its rollover envelope balance (0 for non-rollover categories).
+/// One dashboard row: a category's budget vs actual for the current period.
+///
+/// For a rollover fund, `budget` is the amount that applies to the fund *this*
+/// period (0 while dormant), `carried_over` is the jar balance rolled in from
+/// prior periods, and `envelope_balance` is the live jar (carried_over + this
+/// period's budget − spend). For non-rollover categories `carried_over` and
+/// `envelope_balance` are 0 and `dormant` is false. `dormant` is true only for a
+/// just-reset fund whose accrual restarts next period (row reads $0 until then).
 #[derive(Debug, Clone, Serialize)]
 pub struct DashboardRow {
     pub category_id: Option<i64>,
@@ -127,20 +133,23 @@ pub struct DashboardRow {
     pub rollover: bool,
     pub budget: f64,
     pub spent: f64,
+    pub carried_over: f64,
     pub envelope_balance: f64,
+    pub dormant: bool,
 }
 
 /// The period dashboard. `surplus` is the net balance = total income − total
 /// expense spend (positive = spare to save, negative = overspent). `expense_spent`
-/// now includes rollover categories' actual spend; `rollover_budget` is reported
-/// separately ("Set aside") and does NOT reduce the net balance.
+/// includes rollover funds' actual spend; `funds_total` is the combined live jar
+/// balance across all rollover funds ("In your funds") and does NOT reduce the
+/// net balance.
 #[derive(Debug, Clone, Serialize)]
 pub struct DashboardSummary {
     pub period_start: String,
     pub period_end: String,
     pub income: f64,
     pub expense_spent: f64,
-    pub rollover_budget: f64,
+    pub funds_total: f64,
     pub surplus: f64,
     pub rows: Vec<DashboardRow>,
     pub uncategorized_count: i64,

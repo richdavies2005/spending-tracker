@@ -341,6 +341,12 @@ export async function mockInvoke(cmd: string, a: any = {}): Promise<any> {
       });
       return done();
 
+    case "fund_reset": {
+      const c = s.categories.find((x) => x.id === a.id);
+      if (c && c.rollover) c.rollover_start = ymd(nextPeriodStart(s.settings, new Date()));
+      return done();
+    }
+
     case "budgets_list":
       return s.budgets;
     case "budget_set": {
@@ -611,16 +617,21 @@ function dashboard(s: Store, rangeStart?: string | null, rangeEnd?: string | nul
 
   let income = 0;
   let expenseSpent = 0;
-  let rolloverBudget = 0;
+  let fundsTotal = 0;
   const rows: DashboardRow[] = [];
+  const curStart = periodStart(s.settings, asOf);
+  const idxCur = periodIndex(s.settings, asOf);
 
   for (const c of s.categories) {
     const net = s.transactions
       .filter((t) => t.user_category_id === c.id && within(t))
       .reduce((sum, t) => sum + t.amount, 0);
     const budget = currentBudget(s, c.id);
+    let rowBudget = budget;
     let spent = 0;
     let envelope = 0;
+    let carriedOver = 0;
+    let dormant = false;
 
     if (c.kind === "income") {
       income += net;
@@ -630,18 +641,36 @@ function dashboard(s: Store, rangeStart?: string | null, rangeEnd?: string | nul
       spent = -net;
       expenseSpent += spent; // all expense categories count toward total spend
       if (c.rollover) {
-        rolloverBudget += budget; // informational (Set aside), not subtracted from net
+        // Sinking fund. Accrue each period's budget from the fund's start (mock
+        // approximates with the single current budget) minus everything spent.
         const since = c.rollover_start ?? ymd(start);
-        const elapsed = periodIndex(s.settings, asOf) - periodIndex(s.settings, parseYmd(since)) + 1;
-        const totalSpend = s.transactions
-          .filter(
-            (t) =>
-              t.in_budget &&
-              t.user_category_id === c.id &&
-              parseYmd(t.date) >= parseYmd(since),
-          )
-          .reduce((sum, t) => sum - t.amount, 0);
-        envelope = Math.max(elapsed, 0) * budget - totalSpend;
+        const sinceD = parseYmd(since);
+        const idxRs = periodIndex(s.settings, sinceD);
+        const spendSince = (from: Date, to?: Date) =>
+          s.transactions
+            .filter(
+              (t) =>
+                t.in_budget &&
+                t.user_category_id === c.id &&
+                parseYmd(t.date) >= from &&
+                (to ? parseYmd(t.date) < to : true),
+            )
+            .reduce((sum, t) => sum - t.amount, 0);
+
+        let accruedTotal = 0;
+        let thisPeriodBudget = 0;
+        if (idxCur >= idxRs) {
+          accruedTotal = (idxCur - idxRs + 1) * budget;
+          thisPeriodBudget = budget;
+        } else {
+          dormant = true; // just reset: $0 until next payday
+        }
+        const jar = accruedTotal - spendSince(sinceD);
+        const spendBefore = idxCur >= idxRs ? spendSince(sinceD, curStart) : 0;
+        carriedOver = accruedTotal - thisPeriodBudget - spendBefore;
+        rowBudget = thisPeriodBudget; // fund shows the amount applying THIS period
+        envelope = jar;
+        fundsTotal += jar;
       }
     }
 
@@ -651,9 +680,11 @@ function dashboard(s: Store, rangeStart?: string | null, rangeEnd?: string | nul
       color: c.color,
       kind: c.kind,
       rollover: c.rollover,
-      budget,
+      budget: rowBudget,
       spent,
+      carried_over: carriedOver,
       envelope_balance: envelope,
+      dormant,
     });
   }
 
@@ -666,7 +697,7 @@ function dashboard(s: Store, rangeStart?: string | null, rangeEnd?: string | nul
     period_end: ymd(end),
     income,
     expense_spent: expenseSpent,
-    rollover_budget: rolloverBudget,
+    funds_total: fundsTotal,
     surplus: income - expenseSpent,
     rows,
     uncategorized_count,

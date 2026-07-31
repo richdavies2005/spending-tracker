@@ -90,9 +90,15 @@ export interface DashboardRow {
   color: string;
   kind: CategoryKind;
   rollover: boolean;
+  /** For a fund: the budget applying THIS period (0 while dormant). */
   budget: number;
   spent: number;
+  /** Fund only: jar balance rolled in from prior periods (0 otherwise). */
+  carried_over: number;
+  /** Fund only: live jar = carried_over + this period's budget − spend. */
   envelope_balance: number;
+  /** Fund only: just reset, so it stays $0 until next payday. */
+  dormant: boolean;
 }
 
 export interface DashboardSummary {
@@ -100,7 +106,8 @@ export interface DashboardSummary {
   period_end: string;
   income: number;
   expense_spent: number;
-  rollover_budget: number;
+  /** Combined live jar balance across all rollover funds ("In your funds"). */
+  funds_total: number;
   surplus: number;
   rows: DashboardRow[];
   uncategorized_count: number;

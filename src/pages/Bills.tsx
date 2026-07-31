@@ -227,7 +227,7 @@ function BillModal({
         </label>
       )}
       <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-        Tip: point this at a rollover category to spread a lumpy bill across periods.
+        Tip: point this at a rollover fund to spread a lumpy bill across periods.
       </div>
     </Modal>
   );

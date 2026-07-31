@@ -3,6 +3,7 @@ import { api } from "../lib/api";
 import type { Budget, Category, Settings } from "../lib/types";
 import { money, todayIso } from "../lib/format";
 import { errMessage, useToast } from "../lib/toast";
+import { Icon } from "../components/Icon";
 
 export function Budgets() {
   const toast = useToast();
@@ -116,7 +117,9 @@ export function Budgets() {
                     <div className="cat-name">
                       <span className="dot" style={{ background: c.color }} />
                       {c.name}
-                      {c.rollover && <span className="badge type-transfer">fund</span>}
+                      {c.rollover && (
+                        <Icon name="rollover" size={15} className="fund-mark" />
+                      )}
                     </div>
                   </td>
                   <td>

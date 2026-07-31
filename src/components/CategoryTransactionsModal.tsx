@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Modal } from "./Modal";
+import { Icon } from "./Icon";
 import { api } from "../lib/api";
 import type { DashboardRow, Transaction } from "../lib/types";
 import { money, periodRangeLabel } from "../lib/format";
@@ -13,15 +14,30 @@ export function CategoryTransactionsModal({
   periodStart,
   periodEnd,
   onClose,
+  onChanged,
 }: {
   row: DashboardRow;
   periodStart: string;
   periodEnd: string;
   onClose: () => void;
+  onChanged?: () => void;
 }) {
   const toast = useToast();
   const [allPeriods, setAllPeriods] = useState(false);
   const [txns, setTxns] = useState<Transaction[] | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
+
+  async function resetFund() {
+    if (row.category_id == null) return;
+    try {
+      await api.fundReset(row.category_id);
+      toast.success(`${row.category_name} fund reset to $0.`);
+      onChanged?.();
+      onClose();
+    } catch (e) {
+      toast.error(errMessage(e));
+    }
+  }
 
   // Fetch every transaction in the category once, then window it client-side so
   // the "current period" view honours whatever the dashboard is showing (natural
@@ -63,16 +79,81 @@ export function CategoryTransactionsModal({
       title={row.category_name}
       onClose={onClose}
       footer={
-        <button className="btn" onClick={onClose}>
-          Close
-        </button>
+        <>
+          {row.rollover ? (
+            confirmReset ? (
+              <div className="btn-row" style={{ gap: 8, alignItems: "center" }}>
+                <span className="muted" style={{ fontSize: 12.5 }}>
+                  Reset the fund? This sets available to $0.
+                </span>
+                <button className="btn small danger" onClick={resetFund}>
+                  Yes, reset
+                </button>
+                <button className="btn small" onClick={() => setConfirmReset(false)}>
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button className="btn small" onClick={() => setConfirmReset(true)}>
+                Reset fund
+              </button>
+            )
+          ) : (
+            <span />
+          )}
+          <button className="btn" onClick={onClose}>
+            Close
+          </button>
+        </>
       }
     >
+      {row.rollover && (
+        <div className="fund-panel">
+          <div className="fund-panel-head">
+            <Icon name="rollover" size={16} /> Rollover fund
+          </div>
+          {row.dormant ? (
+            <div className="muted" style={{ fontSize: 13 }}>
+              This fund was reset — it starts filling again next payday.
+            </div>
+          ) : (
+            <div className="fund-breakdown">
+              <div>
+                <span>This period's budget</span>
+                <b>{money(row.budget)}</b>
+              </div>
+              <div>
+                <span>Carried over from before</span>
+                <b>+{money(row.carried_over)}</b>
+              </div>
+              <div className="rule">
+                <span>Available this period</span>
+                <b>{money(row.budget + row.carried_over)}</b>
+              </div>
+              <div>
+                <span>Spent this period</span>
+                <b>−{money(row.spent)}</b>
+              </div>
+              <div className="total">
+                <span>Left in the fund</span>
+                <b>{money(row.envelope_balance)}</b>
+              </div>
+            </div>
+          )}
+          <div className="fund-explain">
+            Whatever you don't spend rolls into next period, so this keeps growing until you
+            use it.
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div className="muted" style={{ fontSize: 13 }}>
           {allPeriods
             ? `${money(includedSpent)} spent across all time`
-            : `${money(includedSpent)} of ${money(row.budget)} · ${periodRangeLabel(periodStart, periodEnd)}`}
+            : row.rollover
+              ? periodRangeLabel(periodStart, periodEnd)
+              : `${money(includedSpent)} of ${money(row.budget)} · ${periodRangeLabel(periodStart, periodEnd)}`}
         </div>
         <div className="seg">
           <button
