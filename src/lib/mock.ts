@@ -313,7 +313,9 @@ export async function mockInvoke(cmd: string, a: any = {}): Promise<any> {
         sort_order: s.categories.length + 1,
         kind: a.kind,
         rollover: a.rollover,
-        rollover_start: a.rollover ? ymd(new Date()) : null,
+        // A new fund accrues from the start of the current pay period so it
+        // covers the whole period it was created in (mirrors the Rust backend).
+        rollover_start: a.rollover ? ymd(periodStart(s.settings, new Date())) : null,
       };
       s.categories.push(c);
       return done(c);
@@ -321,7 +323,7 @@ export async function mockInvoke(cmd: string, a: any = {}): Promise<any> {
     case "category_update": {
       const c = s.categories.find((x) => x.id === a.id);
       if (c) {
-        if (a.rollover && !c.rollover) c.rollover_start = ymd(new Date());
+        if (a.rollover && !c.rollover) c.rollover_start = ymd(periodStart(s.settings, new Date()));
         if (!a.rollover) c.rollover_start = null;
         Object.assign(c, {
           name: a.name,

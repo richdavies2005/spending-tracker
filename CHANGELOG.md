@@ -2,6 +2,15 @@
 
 All notable changes to **Spending & Budget**, newest first.
 
+## v0.8.1
+
+- **Fixed rollover-fund maths for funds created mid-period.** A fund now always
+  covers the whole pay period it was created in, so "Available", "Spent this
+  period" and "Left in the fund" always reconcile. Previously a fund made
+  part-way through a week ignored earlier spending in that category, so the
+  drill-down could show figures that didn't add up (e.g. $10 available, $102.86
+  spent, yet "$4 left"). Existing funds are healed automatically on first launch.
+
 ## v0.8.0
 
 - **Rollover funds, reworked and much clearer.** A fund now reads like any other

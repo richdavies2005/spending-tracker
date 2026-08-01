@@ -116,6 +116,9 @@ fn init_schema(conn: &Connection) -> AppResult<()> {
     ensure_column(conn, "transactions", "in_budget", "INTEGER NOT NULL DEFAULT 1")?;
     // Anchor date for the fortnightly cycle (which two-week block is a pay period).
     ensure_column(conn, "settings", "income_anchor", "TEXT")?;
+    // Heal funds whose start sits mid-period (created before starts were snapped
+    // to a period boundary) so "spent this period" reconciles with the jar.
+    migrate_fund_starts(conn)?;
     Ok(())
 }
 
@@ -239,7 +242,11 @@ pub fn category_create(
 ) -> AppResult<Category> {
     let sort: i64 =
         conn.query_row("SELECT COALESCE(MAX(sort_order),0)+1 FROM categories", [], |r| r.get(0))?;
-    let rollover_start = if rollover { Some(today_str()) } else { None };
+    // A new fund accrues from the START of the current pay period (not the exact
+    // day it's created), so a fund created mid-period still covers the whole
+    // period — keeping "spent this period" consistent with the jar. See
+    // fund_period_start / migrate_fund_starts.
+    let rollover_start = if rollover { Some(fund_period_start(conn)?) } else { None };
     conn.execute(
         "INSERT INTO categories (name, color, sort_order, kind, rollover, rollover_start)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
@@ -266,8 +273,9 @@ pub fn category_update(
     kind: &str,
     rollover: bool,
 ) -> AppResult<()> {
-    // When rollover is first switched on, stamp its start date so the envelope
-    // begins accruing from now (not retroactively).
+    // When rollover is first switched on, stamp its start to the current pay
+    // period's start so the fund covers the whole period it was enabled in (an
+    // existing start is kept as-is — including a future date set by a reset).
     let existing: Option<(i64, Option<String>)> = conn
         .query_row(
             "SELECT rollover, rollover_start FROM categories WHERE id = ?1",
@@ -276,8 +284,11 @@ pub fn category_update(
         )
         .optional()?;
     let rollover_start = match existing {
-        Some((0, _)) if rollover => Some(today_str()),
-        Some((_, prev)) if rollover => prev.or_else(|| Some(today_str())),
+        Some((0, _)) if rollover => Some(fund_period_start(conn)?),
+        Some((_, prev)) if rollover => match prev {
+            Some(p) => Some(p),
+            None => Some(fund_period_start(conn)?),
+        },
         _ => None,
     };
     conn.execute(
@@ -290,6 +301,44 @@ pub fn category_update(
 
 pub fn category_delete(conn: &Connection, id: i64) -> AppResult<()> {
     conn.execute("DELETE FROM categories WHERE id = ?1", params![id])?;
+    Ok(())
+}
+
+/// The start of the pay period containing today, as an ISO string — where a newly
+/// created/enabled fund begins accruing so it covers the whole period.
+fn fund_period_start(conn: &Connection) -> AppResult<String> {
+    let settings = get_settings(conn)?;
+    let today = chrono::Local::now().date_naive();
+    Ok(period::period_start(&settings, today).format("%Y-%m-%d").to_string())
+}
+
+/// One-time heal for funds created before starts were snapped to a period
+/// boundary: move each fund's `rollover_start` to the start of the period it
+/// falls in. Idempotent — a date already on a boundary (including the future
+/// dates a reset sets) is left unchanged — so it's safe to run on every open.
+fn migrate_fund_starts(conn: &Connection) -> AppResult<()> {
+    let settings = get_settings(conn)?;
+    let rows: Vec<(i64, String)> = {
+        let mut stmt = conn.prepare(
+            "SELECT id, rollover_start FROM categories
+             WHERE rollover = 1 AND rollover_start IS NOT NULL",
+        )?;
+        let out = stmt
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+            .collect::<Result<Vec<_>, _>>()?;
+        out
+    };
+    for (id, rs) in rows {
+        if let Ok(d) = NaiveDate::parse_from_str(&rs, "%Y-%m-%d") {
+            let snapped = period::period_start(&settings, d).format("%Y-%m-%d").to_string();
+            if snapped != rs {
+                conn.execute(
+                    "UPDATE categories SET rollover_start = ?2 WHERE id = ?1",
+                    params![id, snapped],
+                )?;
+            }
+        }
+    }
     Ok(())
 }
 
@@ -1238,9 +1287,6 @@ pub fn dashboard(
 // Helpers
 // ----------------------------------------------------------------------------
 
-fn today_str() -> String {
-    chrono::Local::now().date_naive().format("%Y-%m-%d").to_string()
-}
 
 /// Convert an Akahu UTC timestamp to the machine's local date-time, so a
 /// transaction is bucketed on the day it happened *locally* (NZ is UTC+12, so a
@@ -1275,4 +1321,149 @@ pub fn extract_akahu_fields(
         .and_then(|x| x.as_str())
         .map(String::from);
     (date, amount, description, merchant, category)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::params;
+
+    fn mem() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        init_schema(&conn).unwrap();
+        conn
+    }
+
+    fn d(s: &str) -> NaiveDate {
+        NaiveDate::parse_from_str(s, "%Y-%m-%d").unwrap()
+    }
+
+    /// Reproduces the reported bug: a rollover fund created part-way through a pay
+    /// period that already had spending in that category. Its start must snap to
+    /// the period boundary so the dashboard's identity
+    /// `available − spent == left in the fund` holds.
+    #[test]
+    fn fund_created_mid_period_reconciles() {
+        let conn = mem();
+        // Weekly, Monday payday → the period containing 2026-07-31 is 27 Jul–2 Aug,
+        // matching the screenshot.
+        conn.execute(
+            "UPDATE settings SET income_period='weekly', income_day=1 WHERE id=1",
+            [],
+        )
+        .unwrap();
+        let settings = get_settings(&conn).unwrap();
+
+        // "Personal" fund, $10/week, whose start was stamped mid-period (old bug).
+        conn.execute(
+            "INSERT INTO categories (id, name, color, sort_order, kind, rollover, rollover_start)
+             VALUES (1, 'Personal', '#000', 1, 'expense', 1, '2026-07-31')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO budgets (category_id, amount, effective_from)
+             VALUES (1, 10.0, '2026-07-01')",
+            [],
+        )
+        .unwrap();
+        // The four transactions from the screenshot (sum = $102.86).
+        for (id, date, amt) in [
+            ("t1", "2026-07-27", -11.99f64),
+            ("t2", "2026-07-28", -75.87),
+            ("t3", "2026-07-28", -9.00),
+            ("t4", "2026-07-31", -6.00),
+        ] {
+            conn.execute(
+                "INSERT INTO transactions
+                   (id, date, amount, user_category_id, source, status, in_budget)
+                 VALUES (?1, ?2, ?3, 1, 'manual', 'settled', 1)",
+                params![id, format!("{date}T00:00:00"), amt],
+            )
+            .unwrap();
+        }
+
+        let today = d("2026-07-31");
+
+        // Before the heal: start sits mid-period, so the panel can't reconcile
+        // (this is the "$10 − $102.86 = $4" nonsense the user saw).
+        let before = dashboard(&conn, &settings, today, None, None).unwrap();
+        let r = &before.rows[0];
+        let gap = r.budget + r.carried_over - r.spent - r.envelope_balance;
+        assert!(gap.abs() > 1.0, "expected a pre-migration mismatch, got {gap}");
+
+        // The migration snaps the start back to the period boundary (27 Jul).
+        migrate_fund_starts(&conn).unwrap();
+        let snapped: String = conn
+            .query_row("SELECT rollover_start FROM categories WHERE id=1", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(snapped, "2026-07-27");
+
+        // Now the fund covers the whole period and the identity holds exactly.
+        let after = dashboard(&conn, &settings, today, None, None).unwrap();
+        let r = &after.rows[0];
+        let avail = r.budget + r.carried_over;
+        assert!(
+            (avail - r.spent - r.envelope_balance).abs() < 1e-6,
+            "available {avail} − spent {} should equal jar {}",
+            r.spent,
+            r.envelope_balance
+        );
+        // Concretely: $10 budget − $102.86 spent = −$92.86 in the fund.
+        assert!((r.spent - 102.86).abs() < 1e-6, "spent = {}", r.spent);
+        assert!(
+            (r.envelope_balance + 92.86).abs() < 1e-6,
+            "jar = {}",
+            r.envelope_balance
+        );
+    }
+
+    /// A fund that has existed since a prior period is unaffected by the migration
+    /// and still reconciles (guards against the heal disturbing healthy funds).
+    #[test]
+    fn established_fund_unchanged_and_reconciles() {
+        let conn = mem();
+        conn.execute(
+            "UPDATE settings SET income_period='weekly', income_day=1 WHERE id=1",
+            [],
+        )
+        .unwrap();
+        let settings = get_settings(&conn).unwrap();
+
+        // Started three weeks earlier, on a period boundary (6 Jul is a Monday).
+        conn.execute(
+            "INSERT INTO categories (id, name, color, sort_order, kind, rollover, rollover_start)
+             VALUES (1, 'Vehicle', '#000', 1, 'expense', 1, '2026-07-06')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO budgets (category_id, amount, effective_from)
+             VALUES (1, 25.0, '2026-07-01')",
+            [],
+        )
+        .unwrap();
+        // $30 spent this period only.
+        conn.execute(
+            "INSERT INTO transactions (id, date, amount, user_category_id, source, status, in_budget)
+             VALUES ('a', '2026-07-30T00:00:00', -30.0, 1, 'manual', 'settled', 1)",
+            [],
+        )
+        .unwrap();
+
+        migrate_fund_starts(&conn).unwrap();
+        let start: String = conn
+            .query_row("SELECT rollover_start FROM categories WHERE id=1", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(start, "2026-07-06", "boundary start must be left alone");
+
+        let dash = dashboard(&conn, &settings, d("2026-07-31"), None, None).unwrap();
+        let r = &dash.rows[0];
+        // 4 periods × $25 = $100 accrued, − $30 spent = $70 jar.
+        assert!((r.envelope_balance - 70.0).abs() < 1e-6, "jar = {}", r.envelope_balance);
+        assert!(
+            ((r.budget + r.carried_over) - r.spent - r.envelope_balance).abs() < 1e-6,
+            "identity must hold"
+        );
+    }
 }
