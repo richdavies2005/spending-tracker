@@ -25,3 +25,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Generated launch/marketing assets — never committed (large video + composition)
+brag-output/
+
+# Design working files. Only small exports (.svg/.png/.jpg) belong in the repo;
+# the app's mark itself lives in src/components/Logo.tsx and src-tauri/icons/.
+*.ai
+*.psd
+*.sketch
+*.fig
+*.afdesign
