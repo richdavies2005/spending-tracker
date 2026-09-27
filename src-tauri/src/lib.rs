@@ -23,9 +23,6 @@ pub fn run() {
             let db_path = dir.join("spending.sqlite3");
             let database = Db::open(&db_path).map_err(|e| format!("failed to open database: {e}"))?;
 
-            // Bring any recurring bills up to date on launch.
-            let _ = sync::materialize_due(&database);
-
             app.manage(database);
             app.manage(secrets::Creds::new());
             Ok(())
@@ -45,10 +42,6 @@ pub fn run() {
             commands::account_set_enabled,
             commands::map_list,
             commands::map_delete,
-            commands::bills_list,
-            commands::bill_create,
-            commands::bill_update,
-            commands::bill_delete,
             commands::transactions_list,
             commands::transaction_set_category,
             commands::transaction_confirm,

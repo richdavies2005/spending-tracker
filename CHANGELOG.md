@@ -1,6 +1,43 @@
 # Changelog
 
-All notable changes to **Spending & Budget**, newest first.
+All notable changes to **Spare**, newest first.
+
+## v0.8.2
+
+- **A new logo.** The Spare mark — two blocks whose facing edges carve an "S"
+  out of the gap between them — now appears in the sidebar and as the app icon,
+  replacing the placeholder Tauri icon.
+- **Recurring bills has been removed.** The page, its nav entry and the whole
+  feature are gone. Transactions those bills already created are untouched and
+  stay in your history as normal entries.
+- **The app is now called Spare.** Same app, same data — your transactions,
+  budgets, categories and Akahu connection all carry over untouched.
+- **A quieter, more minimal look.** The summary figures lose their boxes and sit
+  straight on the page with Net balance as the single accent block; progress bars
+  are now hairlines; badges lose their pills; category dots are smaller; card
+  shadows are gone in favour of a single hairline border.
+- **Better contrast in dark mode** — the primary button and the "uncategorised"
+  banner used white text on a light green/amber fill (about 2.3:1, unreadable).
+  Both now use a dark-on-light treatment at over 7:1.
+- **Rollover funds no longer carry debt forever.** A fund is now worked out one
+  pay period at a time: unspent budget rolls over as before, but an **overspend
+  is written off at the next payday** instead of following you around. A fund
+  that went badly negative (e.g. −$217 carried over) now starts each payday at
+  $0 plus that period's budget.
+- **Fixed funds being charged for periods they were never funded in.** If you
+  made a category a fund before giving it a budget, everything spent in that gap
+  was turned into permanent, unpayable debt. Those periods now correctly accrue
+  nothing and cost nothing.
+- **Fixed "+-$217.44"** — a negative carry-over was rendered with a stray `+`
+  in front of the minus sign. Signs are now correct everywhere in the fund
+  breakdown, and $0 no longer shows as "+$0.00".
+- **Clearer wording when a fund is overdrawn** — instead of claiming the fund
+  "keeps growing", it now tells you how much you're over and that it resets next
+  payday.
+- **No more ✓/✗ on auto-categorised transactions.** Once you've categorised a
+  merchant and the app has learned the rule, matching transactions are filed
+  silently — no "Auto" badge and no confirm/reject prompt on every one. You can
+  still remove a learned rule under Categories → Merchant map.
 
 ## v0.8.1
 

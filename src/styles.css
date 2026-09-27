@@ -14,14 +14,18 @@
   --good-soft: #e0f1e8;
   --warn: #b1462e;
   --warn-soft: #f6e2db;
-  --amber: #a06d16;
+  --amber: #94610f;
   --amber-soft: #f4e9d4;
   --brand: #1c5546;
   --brand-over: #833c2a;
   --on-brand: #f4faf6;
+  /* Text on a filled --accent / --amber block. Dark mode flips these because
+     the dark palette's accent and amber are light, not dark. */
+  --on-accent: #ffffff;
+  --on-amber: #ffffff;
   --radius: 12px;
   --radius-sm: 8px;
-  --shadow: 0 1px 2px rgba(24, 40, 32, 0.04);
+  --shadow: none;
   --shadow-lift: 0 6px 20px rgba(24, 40, 32, 0.1);
   --font: ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
   --font-display: "Fraunces Variable", "Fraunces", Georgia, "Times New Roman", serif;
@@ -50,7 +54,9 @@
     --brand: #1b4a3c;
     --brand-over: #6f3527;
     --on-brand: #eafaf2;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --on-accent: #0d1310;
+    --on-amber: #0d1310;
+    --shadow: none;
     --shadow-lift: 0 8px 26px rgba(0, 0, 0, 0.4);
   }
 }
@@ -80,9 +86,9 @@ body {
   height: 100vh;
 }
 .sidebar {
-  background: var(--surface);
+  background: transparent;
   border-right: 1px solid var(--border);
-  padding: 18px 14px;
+  padding: 20px 14px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -194,29 +200,34 @@ nav {
   box-shadow: var(--shadow);
 }
 .card-pad {
-  padding: 18px 20px;
+  padding: 20px 22px;
 }
 .grid {
   display: grid;
   gap: 16px;
 }
 .stat-row {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  align-items: center;
 }
 
 /* ---- stat tiles ---- */
 .stat {
-  padding: 16px 18px;
+  padding: 2px 0;
+}
+/* The hero keeps its padding; it's the one filled block on the page. */
+.surplus-card .stat {
+  padding: 18px 20px;
 }
 .stat .label {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-dim);
-  letter-spacing: 0;
-  font-weight: 550;
+  letter-spacing: 0.01em;
+  font-weight: 500;
 }
 .stat .value {
   font-family: var(--font-display);
-  font-size: 30px;
+  font-size: 26px;
   font-weight: 600;
   letter-spacing: -0.01em;
   margin-top: 5px;
@@ -247,7 +258,7 @@ nav {
 }
 .surplus-card .value {
   color: var(--on-brand);
-  font-size: 40px;
+  font-size: 34px;
 }
 .surplus-card .hint {
   color: color-mix(in srgb, var(--on-brand) 82%, transparent);
@@ -291,9 +302,9 @@ nav {
   font-weight: 550;
 }
 .dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
   flex: none;
 }
 .cat-amounts {
@@ -308,7 +319,7 @@ nav {
 }
 .bar {
   grid-column: 1 / -1;
-  height: 7px;
+  height: 3px;
   background: var(--surface-2);
   border-radius: 999px;
   overflow: hidden;
@@ -401,12 +412,12 @@ nav {
 /* ---- badges ---- */
 .badge {
   display: inline-block;
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 650;
-  padding: 2px 7px;
-  border-radius: 999px;
+  padding: 0;
+  background: none !important;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.06em;
   vertical-align: middle;
 }
 .badge.pending {
@@ -511,7 +522,7 @@ button.btn,
 .btn.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 .btn.primary:hover {
   filter: brightness(1.05);
@@ -659,7 +670,7 @@ button.btn,
 }
 .seg-btn.active {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 input,
@@ -714,15 +725,6 @@ select.mini {
   gap: 8px;
   flex-wrap: wrap;
 }
-.suggest-controls {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.badge.suggested {
-  background: var(--amber);
-  color: #fff;
-}
 .icon-btn {
   width: 24px;
   height: 24px;
@@ -739,20 +741,6 @@ select.mini {
 }
 .icon-btn:active {
   transform: scale(0.92);
-}
-.icon-btn.confirm {
-  color: var(--good);
-  border-color: var(--good-soft);
-}
-.icon-btn.confirm:hover {
-  background: var(--good-soft);
-}
-.icon-btn.reject {
-  color: var(--warn);
-  border-color: var(--warn-soft);
-}
-.icon-btn.reject:hover {
-  background: var(--warn-soft);
 }
 
 /* ---- modal ---- */
@@ -808,7 +796,7 @@ select.mini {
   gap: 12px;
   width: 100%;
   background: var(--amber);
-  color: #fff;
+  color: var(--on-amber);
   padding: 10px 16px;
   border: none;
   border-radius: var(--radius-sm);
@@ -840,7 +828,7 @@ button.inbox-callout:focus-visible {
   font-weight: 600;
   color: var(--text);
   letter-spacing: -0.005em;
-  margin: 26px 0 12px;
+  margin: 30px 0 12px;
 }
 .muted {
   color: var(--text-dim);

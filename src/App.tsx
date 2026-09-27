@@ -3,20 +3,19 @@ import { Dashboard } from "./pages/Dashboard";
 import { Transactions } from "./pages/Transactions";
 import { Categories } from "./pages/Categories";
 import { Budgets } from "./pages/Budgets";
-import { Bills } from "./pages/Bills";
 import { Settings } from "./pages/Settings";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { Icon, type IconName } from "./components/Icon";
+import { Logo } from "./components/Logo";
 import { IS_TAURI } from "./lib/api";
 
-export type Page = "dashboard" | "transactions" | "categories" | "budgets" | "bills" | "settings";
+export type Page = "dashboard" | "transactions" | "categories" | "budgets" | "settings";
 
 const NAV: { id: Page; label: string; icon: IconName }[] = [
   { id: "dashboard", label: "Dashboard", icon: "dashboard" },
   { id: "transactions", label: "Transactions", icon: "transactions" },
   { id: "categories", label: "Categories", icon: "categories" },
   { id: "budgets", label: "Budgets", icon: "budgets" },
-  { id: "bills", label: "Recurring bills", icon: "bills" },
   { id: "settings", label: "Settings", icon: "settings" },
 ];
 
@@ -27,8 +26,10 @@ export default function App() {
     <div className="app">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark">$</span>
-          <div className="brand-name">Spending &amp; Budget</div>
+          <span className="brand-mark">
+            <Logo size={17} />
+          </span>
+          <div className="brand-name">Spare</div>
         </div>
         <nav>
           {NAV.map((n) => (
@@ -56,7 +57,6 @@ export default function App() {
         {page === "transactions" && <Transactions />}
         {page === "categories" && <Categories />}
         {page === "budgets" && <Budgets />}
-        {page === "bills" && <Bills />}
         {page === "settings" && <Settings />}
       </main>
     </div>

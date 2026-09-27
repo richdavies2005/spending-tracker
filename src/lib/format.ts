@@ -14,6 +14,14 @@ export function money(n: number): string {
   return nzd.format(clean(n));
 }
 
+/** Money with an explicit leading + or − — for deltas like a fund's carry-over,
+ *  where `money()` alone would render "+-$12.00" if the caller hardcodes a sign. */
+export function moneyDelta(n: number): string {
+  const v = clean(n);
+  if (v === 0) return money(0); // no sign on zero ("+$0.00" reads like a bug)
+  return `${v < 0 ? "\u2212" : "+"}${money(Math.abs(v))}`;
+}
+
 /** Signed money with an explicit + for positive (used for balances/surplus). */
 export function moneySigned(n: number): string {
   const v = clean(n);

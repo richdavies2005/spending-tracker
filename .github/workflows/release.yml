@@ -51,7 +51,7 @@ jobs:
         with:
           # For a tag push this is the tag; for a manual run, the input above.
           tagName: ${{ github.event.inputs.tag || github.ref_name }}
-          releaseName: "Spending & Budget ${{ github.event.inputs.tag || github.ref_name }}"
+          releaseName: "Spare ${{ github.event.inputs.tag || github.ref_name }}"
           releaseBody: |
             ## Install (macOS)
             1. Download the `.dmg` below and open it, then drag the app to Applications.

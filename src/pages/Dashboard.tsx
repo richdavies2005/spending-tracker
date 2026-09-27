@@ -178,18 +178,18 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: Page) => void })
             </div>
           </div>
         </div>
-        <div className="card stat">
+        <div className="stat">
           <div className="label">Income</div>
           <div className="value">{money(data.income)}</div>
           <div className="hint">received this period</div>
         </div>
-        <div className="card stat">
+        <div className="stat">
           <div className="label">Spent</div>
           <div className="value">{money(data.expense_spent)}</div>
           <div className="hint">total spending this period</div>
         </div>
         {hasFunds && (
-          <div className="card stat">
+          <div className="stat">
             <div className="label">In your funds</div>
             <div className="value">{money(data.funds_total)}</div>
             <div className="hint">saved across your rollover funds</div>
@@ -308,21 +308,21 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: Page) => void })
         {diag && (
           <div style={{ marginTop: 12 }}>
             <div className="grid stat-row" style={{ marginBottom: 12 }}>
-              <div className="card stat">
+              <div className="stat">
                 <div className="label">Akahu last refreshed</div>
                 <div className="value" style={{ fontSize: 18 }}>
                   {timestampLabel(diag.refreshed_at)}
                 </div>
                 <div className="hint">{diag.account_count} account(s) connected</div>
               </div>
-              <div className="card stat">
+              <div className="stat">
                 <div className="label">Newest settled</div>
                 <div className="value" style={{ fontSize: 18 }}>
                   {diag.newest_settled_date?.slice(0, 10) ?? "—"}
                 </div>
                 <div className="hint">{diag.settled_count} in last 14 days</div>
               </div>
-              <div className="card stat">
+              <div className="stat">
                 <div className="label">Newest pending</div>
                 <div className="value" style={{ fontSize: 18 }}>
                   {diag.newest_pending_date?.slice(0, 10) ?? "—"}

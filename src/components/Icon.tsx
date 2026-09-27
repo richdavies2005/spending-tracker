@@ -7,7 +7,6 @@ export type IconName =
   | "transactions"
   | "categories"
   | "budgets"
-  | "bills"
   | "settings"
   | "calendar"
   | "refresh"
@@ -41,14 +40,6 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <circle cx="12" cy="12" r="8.3" />
       <path d="M12 12V3.7a8.3 8.3 0 0 1 8.3 8.3Z" fill="currentColor" stroke="none" />
-    </>
-  ),
-  bills: (
-    <>
-      <path d="M17 3.5 20 6.5 17 9.5" />
-      <path d="M20 6.5H8.5a4.5 4.5 0 0 0-4.5 4.5v.5" />
-      <path d="M7 20.5 4 17.5 7 14.5" />
-      <path d="M4 17.5h11.5a4.5 4.5 0 0 0 4.5-4.5v-.5" />
     </>
   ),
   settings: (

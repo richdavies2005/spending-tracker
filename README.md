@@ -1,4 +1,4 @@
-# Spending & Budget
+# Spare
 
 A macOS desktop app (Tauri + React + Rust) that tracks personal spending against
 **weekly, fortnightly, or monthly** budgets, pulling transactions from your everyday
@@ -8,7 +8,7 @@ period it shows how much you have **spare to move to savings**.
 ## Download & install (macOS)
 
 1. Go to the [**Releases**](../../releases) page and download the latest `.dmg`.
-2. Open the `.dmg` and drag **Spending & Budget** to your Applications folder.
+2. Open the `.dmg` and drag **Spare** to your Applications folder.
 3. The first time you open it, **right-click the app → Open → Open**. The app isn't
    notarized by Apple, so a normal double-click is blocked by Gatekeeper; this
    right-click step tells macOS you trust it (only needed once).
@@ -31,8 +31,8 @@ period it shows how much you have **spare to move to savings**.
   across periods, smoothing lumpy bills (rego, insurance).
 - **Auto-categorisation** — label a merchant once and it's remembered (merchant→category
   map), auto-filling future uncategorised transactions.
-- **Manual entries** — an "Add transaction" button (cash / other card) and **recurring
-  bills** (weekly–annual) for payments the everyday account can't see.
+- **Manual entries** — an "Add transaction" button for spending the everyday account
+  can't see (cash, another card).
 - **Full de-duplication** — settled transactions are reconciled by Akahu `_id`; pending
   are wiped and re-fetched each sync so pending→settled never doubles up; a fuzzy guard
   covers the rare same-charge-in-both case.
@@ -93,7 +93,7 @@ git push origin v0.1.0
 ```
 src/                  React + TypeScript UI
   lib/                api (Tauri/mock dispatch), types, formatting, toast
-  pages/              Dashboard, Transactions, Categories, Budgets, Bills, Settings
+  pages/              Dashboard, Transactions, Categories, Budgets, Settings
 src-tauri/src/
   period.rs           weekly/fortnightly/monthly pay-period math (unit-tested)
   db.rs               SQLite schema, queries, surplus/envelope aggregation, reconciliation

@@ -3,7 +3,7 @@ import { Modal } from "./Modal";
 import { Icon } from "./Icon";
 import { api } from "../lib/api";
 import type { DashboardRow, Transaction } from "../lib/types";
-import { money, periodRangeLabel } from "../lib/format";
+import { money, moneyDelta, periodRangeLabel } from "../lib/format";
 import { errMessage, useToast } from "../lib/toast";
 
 /// Drill-down from a Dashboard budget row: lists the transactions that make up a
@@ -124,7 +124,7 @@ export function CategoryTransactionsModal({
               </div>
               <div>
                 <span>Carried over from before</span>
-                <b>+{money(row.carried_over)}</b>
+                <b>{moneyDelta(row.carried_over)}</b>
               </div>
               <div className="rule">
                 <span>Available this period</span>
@@ -132,7 +132,7 @@ export function CategoryTransactionsModal({
               </div>
               <div>
                 <span>Spent this period</span>
-                <b>−{money(row.spent)}</b>
+                <b>{moneyDelta(-row.spent)}</b>
               </div>
               <div className="total">
                 <span>Left in the fund</span>
@@ -141,8 +141,17 @@ export function CategoryTransactionsModal({
             </div>
           )}
           <div className="fund-explain">
-            Whatever you don't spend rolls into next period, so this keeps growing until you
-            use it.
+            {row.envelope_balance < -0.005 ? (
+              <>
+                You've spent {money(-row.envelope_balance)} more than this fund held. The
+                shortfall doesn't roll over — the fund starts fresh next payday.
+              </>
+            ) : (
+              <>
+                Whatever you don't spend rolls into next period, so this keeps growing until
+                you use it.
+              </>
+            )}
           </div>
         </div>
       )}

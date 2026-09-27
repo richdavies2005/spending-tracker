@@ -10,7 +10,6 @@ import type {
   DashboardRow,
   DashboardSummary,
   MerchantMap,
-  RecurringBill,
   Settings,
   SyncResult,
   SyncState,
@@ -26,7 +25,6 @@ interface Store {
   accounts: Account[];
   transactions: Transaction[];
   maps: MerchantMap[];
-  bills: RecurringBill[];
   sync: SyncState;
   seq: Record<string, number>;
 }
@@ -144,19 +142,8 @@ function seed(): Store {
     transactions: tx,
     // A previously-learned rule: description key "pak n save s" -> Groceries.
     maps: [{ id: 1, field: "desckey", pattern: "pak n save s", category_id: 2 }],
-    bills: [
-      {
-        id: 1,
-        name: "Car & Motorcycle Insurance",
-        amount: 110,
-        category_id: 6,
-        frequency: "monthly",
-        anchor_date: ymd(start),
-        active: true,
-      },
-    ],
     sync: { last_sync_at: null, last_run_status: null },
-    seq: { category: 7, budget: 5, map: 1, bill: 1, tx: 0 },
+    seq: { category: 7, budget: 5, map: 1, tx: 0 },
   };
   applyMaps(store); // mark the matching description-only row as a suggestion
   return store;
@@ -252,7 +239,7 @@ function applyMaps(s: Store): number {
       }
       if (hit) {
         t.user_category_id = m.category_id;
-        t.suggested = true; // auto-applied → awaits confirm
+        t.suggested = false; // auto-applied from a user-made rule → no prompt
         n++;
       }
     }
@@ -381,38 +368,6 @@ export async function mockInvoke(cmd: string, a: any = {}): Promise<any> {
       return s.maps;
     case "map_delete":
       s.maps = s.maps.filter((m) => m.id !== a.id);
-      return done();
-
-    case "bills_list":
-      return s.bills;
-    case "bill_create": {
-      const bill: RecurringBill = {
-        id: ++s.seq.bill,
-        name: a.name,
-        amount: a.amount,
-        category_id: a.categoryId ?? null,
-        frequency: a.frequency,
-        anchor_date: a.anchorDate,
-        active: true,
-      };
-      s.bills.push(bill);
-      return done(bill.id);
-    }
-    case "bill_update": {
-      const bill = s.bills.find((x) => x.id === a.id);
-      if (bill)
-        Object.assign(bill, {
-          name: a.name,
-          amount: a.amount,
-          category_id: a.categoryId ?? null,
-          frequency: a.frequency,
-          anchor_date: a.anchorDate,
-          active: a.active,
-        });
-      return done();
-    }
-    case "bill_delete":
-      s.bills = s.bills.filter((x) => x.id !== a.id);
       return done();
 
     case "transactions_list": {
@@ -621,7 +576,6 @@ function dashboard(s: Store, rangeStart?: string | null, rangeEnd?: string | nul
   let expenseSpent = 0;
   let fundsTotal = 0;
   const rows: DashboardRow[] = [];
-  const curStart = periodStart(s.settings, asOf);
   const idxCur = periodIndex(s.settings, asOf);
 
   for (const c of s.categories) {
@@ -643,36 +597,45 @@ function dashboard(s: Store, rangeStart?: string | null, rangeEnd?: string | nul
       spent = -net;
       expenseSpent += spent; // all expense categories count toward total spend
       if (c.rollover) {
-        // Sinking fund. Accrue each period's budget from the fund's start (mock
-        // approximates with the single current budget) minus everything spent.
+        // Sinking fund walked one period at a time (mirrors the Rust backend):
+        // each period adds its budget and subtracts that period's spend, and a
+        // shortfall is written off at the payday rather than carried forward.
         const since = c.rollover_start ?? ymd(start);
         const sinceD = parseYmd(since);
         const idxRs = periodIndex(s.settings, sinceD);
-        const spendSince = (from: Date, to?: Date) =>
+        const spendBetween = (from: Date, to: Date) =>
           s.transactions
             .filter(
               (t) =>
                 t.in_budget &&
                 t.user_category_id === c.id &&
                 parseYmd(t.date) >= from &&
-                (to ? parseYmd(t.date) < to : true),
+                parseYmd(t.date) < to,
             )
             .reduce((sum, t) => sum - t.amount, 0);
 
-        let accruedTotal = 0;
+        let balance = 0;
         let thisPeriodBudget = 0;
         if (idxCur >= idxRs) {
-          accruedTotal = (idxCur - idxRs + 1) * budget;
-          thisPeriodBudget = budget;
+          let pStart = periodStart(s.settings, sinceD);
+          while (periodIndex(s.settings, pStart) <= idxCur) {
+            const next = nextPeriodStart(s.settings, pStart);
+            const pSpend = spendBetween(pStart, next);
+            if (periodIndex(s.settings, pStart) === idxCur) {
+              carriedOver = balance;
+              thisPeriodBudget = budget;
+              balance += budget - pSpend;
+            } else {
+              balance = Math.max(balance + budget - pSpend, 0);
+            }
+            pStart = next;
+          }
         } else {
           dormant = true; // just reset: $0 until next payday
         }
-        const jar = accruedTotal - spendSince(sinceD);
-        const spendBefore = idxCur >= idxRs ? spendSince(sinceD, curStart) : 0;
-        carriedOver = accruedTotal - thisPeriodBudget - spendBefore;
         rowBudget = thisPeriodBudget; // fund shows the amount applying THIS period
-        envelope = jar;
-        fundsTotal += jar;
+        envelope = balance;
+        fundsTotal += balance;
       }
     }
 

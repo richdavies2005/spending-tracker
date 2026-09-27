@@ -87,19 +87,6 @@ pub struct MerchantMap {
     pub category_id: i64,
 }
 
-/// A recurring bill template that materialises transactions on its schedule.
-/// `frequency` = weekly|fortnightly|monthly|annual.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RecurringBill {
-    pub id: i64,
-    pub name: String,
-    pub amount: f64,
-    pub category_id: Option<i64>,
-    pub frequency: String,
-    pub anchor_date: String,
-    pub active: bool,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SyncState {
     pub last_sync_at: Option<String>,

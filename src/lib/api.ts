@@ -14,8 +14,6 @@ import type {
   DashboardSummary,
   IncomePeriod,
   MerchantMap,
-  RecurringBill,
-  BillFrequency,
   Settings,
   SyncResult,
   SyncState,
@@ -69,25 +67,6 @@ export const api = {
   mapList: () => call<MerchantMap[]>("map_list"),
   mapDelete: (id: number) => call<void>("map_delete", { id }),
 
-  // Recurring bills
-  billsList: () => call<RecurringBill[]>("bills_list"),
-  billCreate: (
-    name: string,
-    amount: number,
-    categoryId: number | null,
-    frequency: BillFrequency,
-    anchorDate: string,
-  ) => call<number>("bill_create", { name, amount, categoryId, frequency, anchorDate }),
-  billUpdate: (
-    id: number,
-    name: string,
-    amount: number,
-    categoryId: number | null,
-    frequency: BillFrequency,
-    anchorDate: string,
-    active: boolean,
-  ) => call<void>("bill_update", { id, name, amount, categoryId, frequency, anchorDate, active }),
-  billDelete: (id: number) => call<void>("bill_delete", { id }),
 
   // Transactions
   transactionsList: (showTransfers: boolean, allPeriods: boolean) =>

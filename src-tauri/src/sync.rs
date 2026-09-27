@@ -1,4 +1,4 @@
-use chrono::{DateTime, Duration, Local, NaiveDate, SecondsFormat, Utc};
+use chrono::{DateTime, Duration, Local, SecondsFormat, Utc};
 
 use crate::akahu::AkahuClient;
 use crate::db::{self, Db};
@@ -145,7 +145,6 @@ pub async fn run_sync(
         }
 
         db::apply_maps(&conn)?;
-        db::materialize_bills(&conn, today)?;
 
         let status = format!(
             "{inserted} new, {updated} updated, {deleted} removed, {pending_kept} pending"
@@ -198,9 +197,3 @@ fn synth_pending_id(item: &serde_json::Value) -> String {
     format!("pending-{date}-{amount}-{desc}")
 }
 
-/// Ensure any recurring bills due up to today exist (called on app startup too).
-pub fn materialize_due(db: &Db) -> AppResult<usize> {
-    let today: NaiveDate = Local::now().date_naive();
-    let conn = db.0.lock().unwrap();
-    db::materialize_bills(&conn, today)
-}

@@ -3,7 +3,6 @@
 export type CategoryKind = "income" | "expense" | "transfer";
 export type TxSource = "akahu" | "manual" | "recurring";
 export type TxStatus = "settled" | "pending";
-export type BillFrequency = "weekly" | "fortnightly" | "monthly" | "annual";
 
 export type IncomePeriod = "weekly" | "fortnightly" | "monthly";
 
@@ -58,16 +57,6 @@ export interface MerchantMap {
   field: "merchant" | "description" | "desckey";
   pattern: string;
   category_id: number;
-}
-
-export interface RecurringBill {
-  id: number;
-  name: string;
-  amount: number;
-  category_id: number | null;
-  frequency: BillFrequency;
-  anchor_date: string; // YYYY-MM-DD
-  active: boolean;
 }
 
 export interface SyncState {

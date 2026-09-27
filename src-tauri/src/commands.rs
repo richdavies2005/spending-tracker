@@ -118,46 +118,6 @@ pub fn map_delete(db: State<'_, Db>, id: i64) -> AppResult<()> {
     db::map_delete(&db.0.lock().unwrap(), id)
 }
 
-// ---- Recurring bills ------------------------------------------------------
-
-#[tauri::command]
-pub fn bills_list(db: State<'_, Db>) -> AppResult<Vec<RecurringBill>> {
-    db::bills_list(&db.0.lock().unwrap())
-}
-
-#[tauri::command]
-pub fn bill_create(
-    db: State<'_, Db>,
-    name: String,
-    amount: f64,
-    category_id: Option<i64>,
-    frequency: String,
-    anchor_date: String,
-) -> AppResult<i64> {
-    let conn = db.0.lock().unwrap();
-    let id = db::bill_create(&conn, &name, amount, category_id, &frequency, &anchor_date)?;
-    db::materialize_bills(&conn, today())?;
-    Ok(id)
-}
-
-#[tauri::command]
-pub fn bill_update(
-    db: State<'_, Db>,
-    id: i64,
-    name: String,
-    amount: f64,
-    category_id: Option<i64>,
-    frequency: String,
-    anchor_date: String,
-    active: bool,
-) -> AppResult<()> {
-    db::bill_update(&db.0.lock().unwrap(), id, &name, amount, category_id, &frequency, &anchor_date, active)
-}
-
-#[tauri::command]
-pub fn bill_delete(db: State<'_, Db>, id: i64) -> AppResult<()> {
-    db::bill_delete(&db.0.lock().unwrap(), id)
-}
 
 // ---- Transactions ---------------------------------------------------------
 

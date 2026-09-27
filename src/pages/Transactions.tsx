@@ -47,30 +47,12 @@ export function Transactions() {
   }, [showTransfers, allPeriods, range]);
 
   async function setCategory(tx: Transaction, categoryId: number | null) {
-    const wasUnset = tx.user_category_id == null || tx.suggested;
+    const wasUnset = tx.user_category_id == null;
     try {
       const learned = await api.transactionSetCategory(tx.id, categoryId, wasUnset);
       if (wasUnset && categoryId != null && learned > 0) {
         toast.success(`Also categorised ${learned} more like it.`);
       }
-      await load();
-    } catch (e) {
-      toast.error(errMessage(e));
-    }
-  }
-
-  async function confirmSuggestion(tx: Transaction) {
-    try {
-      await api.transactionConfirm(tx.id);
-      await load();
-    } catch (e) {
-      toast.error(errMessage(e));
-    }
-  }
-  async function rejectSuggestion(tx: Transaction) {
-    try {
-      await api.transactionReject(tx.id);
-      toast.info("Set back to uncategorised.");
       await load();
     } catch (e) {
       toast.error(errMessage(e));
@@ -229,27 +211,6 @@ export function Transactions() {
                       <option value="">— Uncategorised —</option>
                       <CategoryOptGroups cats={cats} />
                     </select>
-                    {tx.suggested && (
-                      <span className="suggest-controls">
-                        <span className="badge suggested">Auto</span>
-                        <button
-                          className="icon-btn confirm"
-                          aria-label="Confirm suggested category and remember this rule"
-                          title="Correct — keep it and remember this rule"
-                          onClick={() => confirmSuggestion(tx)}
-                        >
-                          ✓
-                        </button>
-                        <button
-                          className="icon-btn reject"
-                          aria-label="Reject suggested category and forget this rule"
-                          title="Wrong — clear it and forget this rule"
-                          onClick={() => rejectSuggestion(tx)}
-                        >
-                          ✕
-                        </button>
-                      </span>
-                    )}
                   </div>
                 </td>
                 <td className={`amount ${tx.amount > 0 ? "pos" : ""}`}>

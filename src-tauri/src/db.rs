@@ -93,16 +93,6 @@ fn init_schema(conn: &Connection) -> AppResult<()> {
             UNIQUE(field, pattern)
         );
 
-        CREATE TABLE IF NOT EXISTS recurring_bills (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            name        TEXT NOT NULL,
-            amount      REAL NOT NULL,
-            category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
-            frequency   TEXT NOT NULL,   -- weekly|fortnightly|monthly|annual
-            anchor_date TEXT NOT NULL,
-            active      INTEGER NOT NULL DEFAULT 1
-        );
-
         CREATE TABLE IF NOT EXISTS sync_state (
             id              INTEGER PRIMARY KEY CHECK (id = 1),
             last_sync_at    TEXT,
@@ -116,6 +106,9 @@ fn init_schema(conn: &Connection) -> AppResult<()> {
     ensure_column(conn, "transactions", "in_budget", "INTEGER NOT NULL DEFAULT 1")?;
     // Anchor date for the fortnightly cycle (which two-week block is a pay period).
     ensure_column(conn, "settings", "income_anchor", "TEXT")?;
+    // Auto-applied categories are no longer queued for confirm/reject, so clear
+    // any prompts left over from an older version.
+    conn.execute("UPDATE transactions SET suggested = 0 WHERE suggested = 1", [])?;
     // Heal funds whose start sits mid-period (created before starts were snapped
     // to a period boundary) so "spent this period" reconciles with the jar.
     migrate_fund_starts(conn)?;
@@ -494,8 +487,9 @@ pub fn map_delete(conn: &Connection, id: i64) -> AppResult<()> {
     Ok(())
 }
 
-/// Apply every mapping to currently-uncategorised transactions, marking each
-/// auto-applied row `suggested` so the UI can offer confirm/reject. Merchant maps
+/// Apply every mapping to currently-uncategorised transactions. A rule only ever
+/// exists because the user categorised a transaction themselves, so matches are
+/// applied silently — the UI does not ask for confirmation again. Merchant maps
 /// match exact (case-insensitive) merchant name; `desckey` maps match the
 /// normalised description key; `description` maps match on substring.
 pub fn apply_maps(conn: &Connection) -> AppResult<usize> {
@@ -506,13 +500,13 @@ pub fn apply_maps(conn: &Connection) -> AppResult<usize> {
     for m in maps.iter().filter(|m| m.field != "desckey") {
         updated += if m.field == "merchant" {
             conn.execute(
-                "UPDATE transactions SET user_category_id = ?1, suggested = 1
+                "UPDATE transactions SET user_category_id = ?1, suggested = 0
                  WHERE user_category_id IS NULL AND merchant_name = ?2 COLLATE NOCASE",
                 params![m.category_id, m.pattern],
             )?
         } else {
             conn.execute(
-                "UPDATE transactions SET user_category_id = ?1, suggested = 1
+                "UPDATE transactions SET user_category_id = ?1, suggested = 0
                  WHERE user_category_id IS NULL AND description LIKE ?2 COLLATE NOCASE",
                 params![m.category_id, format!("%{}%", m.pattern)],
             )?
@@ -537,7 +531,7 @@ pub fn apply_maps(conn: &Connection) -> AppResult<usize> {
             if let Some(key) = desc_key(description.as_deref()) {
                 if let Some(&cat) = desckey_maps.get(&key) {
                     updated += conn.execute(
-                        "UPDATE transactions SET user_category_id = ?1, suggested = 1 WHERE id = ?2",
+                        "UPDATE transactions SET user_category_id = ?1, suggested = 0 WHERE id = ?2",
                         params![cat, id],
                     )?;
                 }
@@ -545,120 +539,6 @@ pub fn apply_maps(conn: &Connection) -> AppResult<usize> {
         }
     }
     Ok(updated)
-}
-
-// ----------------------------------------------------------------------------
-// Recurring bills
-// ----------------------------------------------------------------------------
-
-pub fn bills_list(conn: &Connection) -> AppResult<Vec<RecurringBill>> {
-    let mut stmt = conn.prepare(
-        "SELECT id, name, amount, category_id, frequency, anchor_date, active
-         FROM recurring_bills ORDER BY name",
-    )?;
-    let rows = stmt
-        .query_map([], |r| {
-            Ok(RecurringBill {
-                id: r.get(0)?,
-                name: r.get(1)?,
-                amount: r.get(2)?,
-                category_id: r.get(3)?,
-                frequency: r.get(4)?,
-                anchor_date: r.get(5)?,
-                active: r.get::<_, i64>(6)? != 0,
-            })
-        })?
-        .collect::<Result<Vec<_>, _>>()?;
-    Ok(rows)
-}
-
-pub fn bill_create(
-    conn: &Connection,
-    name: &str,
-    amount: f64,
-    category_id: Option<i64>,
-    frequency: &str,
-    anchor_date: &str,
-) -> AppResult<i64> {
-    conn.execute(
-        "INSERT INTO recurring_bills (name, amount, category_id, frequency, anchor_date, active)
-         VALUES (?1, ?2, ?3, ?4, ?5, 1)",
-        params![name, amount, category_id, frequency, anchor_date],
-    )?;
-    Ok(conn.last_insert_rowid())
-}
-
-pub fn bill_update(
-    conn: &Connection,
-    id: i64,
-    name: &str,
-    amount: f64,
-    category_id: Option<i64>,
-    frequency: &str,
-    anchor_date: &str,
-    active: bool,
-) -> AppResult<()> {
-    conn.execute(
-        "UPDATE recurring_bills SET name=?2, amount=?3, category_id=?4, frequency=?5,
-             anchor_date=?6, active=?7 WHERE id=?1",
-        params![id, name, amount, category_id, frequency, anchor_date, active as i64],
-    )?;
-    Ok(())
-}
-
-pub fn bill_delete(conn: &Connection, id: i64) -> AppResult<()> {
-    conn.execute("DELETE FROM recurring_bills WHERE id = ?1", params![id])?;
-    Ok(())
-}
-
-/// Materialise recurring bills as transactions up to `today`. Each occurrence
-/// gets a deterministic id so repeated runs never duplicate. Bills are expenses
-/// (stored as negative amounts).
-pub fn materialize_bills(conn: &Connection, today: NaiveDate) -> AppResult<usize> {
-    use chrono::{Duration, Months};
-    let bills = bills_list(conn)?;
-    let mut created = 0usize;
-    for bill in bills.iter().filter(|b| b.active) {
-        let anchor = match NaiveDate::parse_from_str(&bill.anchor_date, "%Y-%m-%d") {
-            Ok(d) => d,
-            Err(_) => continue,
-        };
-        let mut n: i64 = 0;
-        loop {
-            if n > 1040 {
-                break; // safety cap (~20y weekly)
-            }
-            let occ = match bill.frequency.as_str() {
-                "weekly" => anchor + Duration::days(7 * n),
-                "fortnightly" => anchor + Duration::days(14 * n),
-                "monthly" => anchor + Months::new(n as u32),
-                "annual" => anchor + Months::new(12 * n as u32),
-                _ => anchor + Months::new(n as u32),
-            };
-            if occ > today {
-                break;
-            }
-            let occ_str = occ.format("%Y-%m-%d").to_string();
-            let id = format!("recurring-{}-{}", bill.id, occ_str);
-            let changed = conn.execute(
-                "INSERT OR IGNORE INTO transactions
-                   (id, account_id, date, amount, description, merchant_name,
-                    user_category_id, source, status, edited)
-                 VALUES (?1, NULL, ?2, ?3, ?4, ?5, ?6, 'recurring', 'settled', 0)",
-                params![
-                    id,
-                    format!("{}T00:00:00Z", occ_str),
-                    -bill.amount.abs(),
-                    bill.name,
-                    bill.name,
-                    bill.category_id
-                ],
-            )?;
-            created += changed;
-            n += 1;
-        }
-    }
-    Ok(created)
 }
 
 // ----------------------------------------------------------------------------
@@ -1119,16 +999,6 @@ fn category_amount_sum(
     Ok(conn.query_row(&sql, params![category_id, start, end], |r| r.get(0))?)
 }
 
-/// Total outgoing (negated) for a category since `since` (for envelope balance).
-fn category_spend_since(conn: &Connection, category_id: i64, since: &str) -> AppResult<f64> {
-    let sql = format!(
-        "SELECT COALESCE(-SUM(amount),0) FROM transactions
-         WHERE user_category_id = ?1 AND substr(date,1,10) >= ?2 AND in_budget = 1 AND {acct}",
-        acct = ACCT_FILTER
-    );
-    Ok(conn.query_row(&sql, params![category_id, since], |r| r.get(0))?)
-}
-
 /// Resolve the dashboard's date window. With an explicit inclusive range
 /// (`range_start`..`range_end`) it returns those bounds (end made exclusive) plus
 /// the range end as the "as of" date for rollover accrual; otherwise it falls back
@@ -1167,8 +1037,6 @@ pub fn dashboard(
     let mut expense_spent = 0.0; // actual spend of ALL expense categories (funds included)
     let mut funds_total = 0.0; // combined live jar across rollover funds ("In your funds")
 
-    let cur_start = period::period_start(settings, as_of);
-    let cur_start_str = cur_start.format("%Y-%m-%d").to_string();
     let idx_cur = period::period_index(settings, as_of);
 
     for c in &categories {
@@ -1190,15 +1058,18 @@ pub fn dashboard(
                 let spent = -net;
                 expense_spent += spent;
                 if c.rollover {
-                    // A sinking fund. Accrue each period's OWN budget from the
-                    // fund's start through the current period — so a budget change
-                    // only counts from the period it was made (no retroactive
-                    // re-pricing) — then subtract everything spent from the fund.
+                    // A sinking fund, walked one pay period at a time from its
+                    // start to now. Each period adds its OWN budget (so a budget
+                    // change never re-prices the past) and subtracts that period's
+                    // spend. Savings roll over; a shortfall does NOT — an overspent
+                    // fund starts the next payday at $0 instead of carrying debt
+                    // forward forever. This also means periods before the fund had
+                    // any budget can't saddle it with unfundable debt.
                     let since = c.rollover_start.clone().unwrap_or_else(|| start.clone());
                     let rs_date = NaiveDate::parse_from_str(&since, "%Y-%m-%d").unwrap_or(as_of);
                     let idx_rs = period::period_index(settings, rs_date);
 
-                    let mut accrued_total = 0.0;
+                    let mut balance = 0.0;
                     let mut this_period_budget = 0.0;
                     if idx_cur >= idx_rs {
                         let mut p_start = period::period_start(settings, rs_date);
@@ -1212,9 +1083,22 @@ pub fn dashboard(
                                 .format("%Y-%m-%d")
                                 .to_string();
                             let bp = current_budget(conn, c.id, &lookup)?;
-                            accrued_total += bp;
+                            let p_spend = -category_amount_sum(
+                                conn,
+                                c.id,
+                                &p_start.format("%Y-%m-%d").to_string(),
+                                &next.format("%Y-%m-%d").to_string(),
+                            )?;
                             if period::period_index(settings, p_start) == idx_cur {
+                                // Current period: whatever survived the last payday
+                                // is the carry-in the UI shows.
+                                carried_over = balance;
                                 this_period_budget = bp;
+                                balance += bp - p_spend;
+                            } else {
+                                // Past period: unspent budget rolls over, an
+                                // overspend is written off at the payday.
+                                balance = (balance + bp - p_spend).max(0.0);
                             }
                             p_start = next;
                         }
@@ -1224,19 +1108,11 @@ pub fn dashboard(
                         dormant = true;
                     }
 
-                    let jar = accrued_total - category_spend_since(conn, c.id, &since)?;
-                    // Jar as it stood at the start of the current period (carryover).
-                    let spend_before = if idx_cur >= idx_rs {
-                        -category_amount_sum(conn, c.id, &since, &cur_start_str)?
-                    } else {
-                        0.0
-                    };
-                    carried_over = (accrued_total - this_period_budget) - spend_before;
                     // A fund's shown budget is the amount applying THIS period
                     // (0 while dormant), not the raw configured amount.
                     budget = this_period_budget;
-                    funds_total += jar;
-                    (spent, jar)
+                    funds_total += balance;
+                    (spent, balance)
                 } else {
                     (spent, 0.0)
                 }
@@ -1385,12 +1261,12 @@ mod tests {
 
         let today = d("2026-07-31");
 
-        // Before the heal: start sits mid-period, so the panel can't reconcile
-        // (this is the "$10 − $102.86 = $4" nonsense the user saw).
+        // The accrual walks whole pay periods, so the identity holds even before
+        // the start is healed (the mid-period start no longer skews the window).
         let before = dashboard(&conn, &settings, today, None, None).unwrap();
         let r = &before.rows[0];
         let gap = r.budget + r.carried_over - r.spent - r.envelope_balance;
-        assert!(gap.abs() > 1.0, "expected a pre-migration mismatch, got {gap}");
+        assert!(gap.abs() < 1e-6, "identity must hold even pre-heal, got {gap}");
 
         // The migration snaps the start back to the period boundary (27 Jul).
         migrate_fund_starts(&conn).unwrap();
@@ -1465,5 +1341,102 @@ mod tests {
             ((r.budget + r.carried_over) - r.spent - r.envelope_balance).abs() < 1e-6,
             "identity must hold"
         );
+    }
+
+    /// A shortfall must not roll into the next period: savings carry, debt does
+    /// not. Modelled on the reported "Hannah" fund, which had accumulated a
+    /// -$217 carry-over that could never be repaid.
+    #[test]
+    fn overspend_does_not_carry_past_payday() {
+        let conn = mem();
+        conn.execute(
+            "UPDATE settings SET income_period='monthly', income_day=1 WHERE id=1",
+            [],
+        )
+        .unwrap();
+        let settings = get_settings(&conn).unwrap();
+
+        // Fund starts 1 Jun, but the first budget is only set on 26 Jul — so June
+        // is an UNFUNDED period and must not saddle the fund with debt.
+        conn.execute(
+            "INSERT INTO categories (id, name, color, sort_order, kind, rollover, rollover_start)
+             VALUES (1, 'Hannah', '#000', 1, 'expense', 1, '2026-06-01')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO budgets (category_id, amount, effective_from)
+             VALUES (1, 80.0, '2026-07-26')",
+            [],
+        )
+        .unwrap();
+        // Real monthly spend: Jun 112.00, Jul 130.40, Aug 140.46, Sep 57.78.
+        for (id, date, amt) in [
+            ("j", "2026-06-15", -112.00f64),
+            ("l", "2026-07-15", -130.40),
+            ("a", "2026-08-15", -140.46),
+            ("s", "2026-09-15", -57.78),
+        ] {
+            conn.execute(
+                "INSERT INTO transactions
+                   (id, date, amount, user_category_id, source, status, in_budget)
+                 VALUES (?1, ?2, ?3, 1, 'manual', 'settled', 1)",
+                params![id, format!("{date}T00:00:00"), amt],
+            )
+            .unwrap();
+        }
+
+        let dash = dashboard(&conn, &settings, d("2026-09-20"), None, None).unwrap();
+        let r = &dash.rows[0];
+        // Every prior month overspent, so each was written off at its payday:
+        // September starts clean at $0 carry-in with its own $80.
+        assert!(r.carried_over.abs() < 1e-6, "carry-in = {}", r.carried_over);
+        assert!((r.budget - 80.0).abs() < 1e-6, "budget = {}", r.budget);
+        assert!((r.spent - 57.78).abs() < 1e-6, "spent = {}", r.spent);
+        assert!(
+            (r.envelope_balance - 22.22).abs() < 1e-6,
+            "jar = {}",
+            r.envelope_balance
+        );
+        // Carry-in can never be negative now.
+        assert!(r.carried_over >= 0.0);
+    }
+
+    /// Underspending still rolls over — the saving half of the feature must keep
+    /// working after the shortfall floor was added.
+    #[test]
+    fn underspend_still_rolls_over() {
+        let conn = mem();
+        conn.execute(
+            "UPDATE settings SET income_period='monthly', income_day=1 WHERE id=1",
+            [],
+        )
+        .unwrap();
+        let settings = get_settings(&conn).unwrap();
+        conn.execute(
+            "INSERT INTO categories (id, name, color, sort_order, kind, rollover, rollover_start)
+             VALUES (1, 'Car service', '#000', 1, 'expense', 1, '2026-07-01')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO budgets (category_id, amount, effective_from)
+             VALUES (1, 50.0, '2026-07-01')",
+            [],
+        )
+        .unwrap();
+        // Spend nothing in Jul/Aug, $20 in Sep.
+        conn.execute(
+            "INSERT INTO transactions (id, date, amount, user_category_id, source, status, in_budget)
+             VALUES ('x', '2026-09-10T00:00:00', -20.0, 1, 'manual', 'settled', 1)",
+            [],
+        )
+        .unwrap();
+
+        let dash = dashboard(&conn, &settings, d("2026-09-20"), None, None).unwrap();
+        let r = &dash.rows[0];
+        // Jul $50 + Aug $50 rolled in, Sep adds $50, minus $20 spent = $130.
+        assert!((r.carried_over - 100.0).abs() < 1e-6, "carry-in = {}", r.carried_over);
+        assert!((r.envelope_balance - 130.0).abs() < 1e-6, "jar = {}", r.envelope_balance);
     }
 }
