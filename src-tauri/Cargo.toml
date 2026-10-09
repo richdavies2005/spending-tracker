@@ -1,8 +1,8 @@
 [package]
 name = "spending-tracker"
 version = "0.8.2"
-description = "A Tauri App"
-authors = ["you"]
+description = "Spare — pay-period budgeting for macOS"
+authors = ["Richard Davies"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -29,3 +29,12 @@ chrono = { version = "0.4", features = ["serde"] }
 thiserror = "1"
 tokio = { version = "1", features = ["time"] }
 
+
+# Keep the dev build cache small. Full debug symbols for Tauri's ~500-crate
+# dependency tree were the bulk of a 6 GB target/ directory.
+#   debug = 1      line tables only — panics still give file:line, but no
+#                  variable inspection in a debugger (we don't use one)
+#   incremental    off — this cache alone was ~1 GB and mostly churn
+[profile.dev]
+debug = 1
+incremental = false
